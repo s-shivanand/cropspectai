@@ -16,7 +16,9 @@ classifiers = [
 
 ]
 dependencies = [
-    "loguru",
+    "datasets>=5.0.1",
+    "ipykernel>=7.4.0",
+    "pandas>=3.0.6",
     "pip",
     "python-dotenv",
     "ruff",
