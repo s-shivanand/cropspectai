@@ -1,11 +1,14 @@
+from cropspectai import config
 import matplotlib.pyplot as plt
 from cropspectai.data_analysis.preprocessing import split_dataset_into_X_y
 from cropspectai.config import RAW_PARQUET_DATA_SPLITS_PATH
 import pandas as pd
+import numpy as np
 
 
 def plot_spectra(X, n_samples=500):
-    wavelengths = X.columns.astype(float)
+
+    wavelengths, X = obtain_wavelengths_from_data(X)   
 
     sample = X.sample(
         n=min(n_samples, len(X)),
@@ -26,9 +29,28 @@ def plot_spectra(X, n_samples=500):
     plt.title(f"Random sample of {len(sample)} spectra")
     # plt.show()
 
+def obtain_wavelengths_from_data(X: pd.DataFrame) -> tuple[np.ndarray, pd.DataFrame]:
+    try:
+        # Hyperspectral data: column names are wavelengths
+        wavelengths = X.columns.astype(float).to_numpy()
+
+    except ValueError:
+        # Downsampled AS7343 data: column names are channel names
+        wavelengths = np.array([
+            config.AS7343_CHANNELS[channel]["peak"]
+            for channel in X.columns
+        ])
+
+    # Sort by wavelength and corresponding data
+    order = np.argsort(wavelengths)
+    wavelengths = wavelengths[order]
+    X = X.iloc[:, order]    
+
+    return wavelengths, X
+
 
 def plot_spectral_distribution(X):
-    wavelengths = X.columns.astype(float)
+    wavelengths, X = obtain_wavelengths_from_data(X)
 
     median = X.median()
     mean = X.mean()
@@ -124,7 +146,7 @@ def plot_spectra_by_grouped_target(X, y):
         "High": ":",
     }
 
-    wavelengths = X.columns.astype(float)
+    wavelengths, X = obtain_wavelengths_from_data(X)
 
     # 4 rows × 2 columns for 8 targets
     fig, axes = plt.subplots(

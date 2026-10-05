@@ -10,13 +10,14 @@ PROJ_ROOT = Path(__file__).resolve().parents[1]
 
 DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
-INTERIM_DATA_DIR = DATA_DIR / "interim"
+DOWNSAMPLED_DATA_DIR = DATA_DIR / "downsampled"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 
-# GHS RAW DATA PATH
-
+# GHS DATA PATH
 RAW_PARQUET_DATA_SPLITS_PATH = RAW_DATA_DIR / "GreenHyperSpectra" / "parquet" / "labeled_splits"
+PROCESSED_PARQUET_DATA_SPLITS_PATH = PROCESSED_DATA_DIR / "GreenHyperSpectra" / "parquet" / "labeled_splits"
+DOWNSAMPLED_PARQUET_DATA_SPLITS_PATH = DOWNSAMPLED_DATA_DIR / "GreenHyperSpectra" / "parquet" / "labeled_splits"
 
 
 MODELS_DIR = PROJ_ROOT / "models"
@@ -59,6 +60,21 @@ AS7343_CHANNELS = {
     "F8":  {"peak": 745, "fwhm": 60},
     "NIR": {"peak": 855, "fwhm": 54},
 }
+
+channel_colors = {
+        "F1":  "purple",
+        "F2":  "blueviolet",
+        "FZ":  "blue",
+        "F3":  "deepskyblue",
+        "F4":  "limegreen",
+        "F5":  "green",
+        "FY":  "yellowgreen",
+        "FXL": "orange",
+        "F6":  "orangered",
+        "F7":  "red",
+        "F8":  "darkred",
+        "NIR": "grey",
+    }
 
 
 # standard conversion factor FWHM to std dev
