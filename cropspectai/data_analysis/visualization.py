@@ -44,7 +44,7 @@ def obtain_wavelengths_from_data(X: pd.DataFrame) -> tuple[np.ndarray, pd.DataFr
     # Sort by wavelength and corresponding data
     order = np.argsort(wavelengths)
     wavelengths = wavelengths[order]
-    X = X.iloc[:, order]    
+    X = X.iloc[:, order].copy()    
 
     return wavelengths, X
 

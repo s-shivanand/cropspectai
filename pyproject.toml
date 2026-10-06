@@ -18,13 +18,16 @@ classifiers = [
 dependencies = [
     "datasets>=5.0.1",
     "ipykernel>=7.4.0",
+    "lightgbm>=4.7.0",
     "matplotlib>=3.11.2",
     "pandas>=3.0.6",
     "pip",
     "python-dotenv",
     "ruff",
+    "scikit-learn>=1.9.1",
     "tqdm",
     "typer",
+    "xgboost>=3.4.1",
 ]
 requires-python = "~=3.14.0"
 

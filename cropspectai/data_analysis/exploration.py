@@ -16,7 +16,6 @@ def explore_dataset(df: pd.DataFrame) -> None:
     print("=" * 50)
     print(df.dtypes)
 
-
     print("=" * 50)
     print("Missing Values")
     print("=" * 50)
@@ -28,10 +27,14 @@ def explore_dataset(df: pd.DataFrame) -> None:
     print("=" * 50)
     print("Duplicate Rows")
     print("=" * 50)
-    duplicate_rows = df.duplicated().sum()
+    duplicate_mask = df.duplicated()
+    duplicate_rows = duplicate_mask.sum()
     duplicate_pct = (duplicate_rows / len(df) * 100).round(1)
-    print(f"Duplicates: {duplicate_rows}")
-    print(f"Percent:    {duplicate_pct}%")
+    duplicates = df.loc[duplicate_mask]
+    duplicates_all_nan = duplicates.isna().all(axis=1).sum() # NaN checks among duplicated rows
+    print(f"Duplicates:              {duplicate_rows}")
+    print(f"Percent:                 {duplicate_pct}%")
+    print(f"Duplicates all NaN:      {duplicates_all_nan}")
 
     print("=" * 50)
     print("Statistical Summary")

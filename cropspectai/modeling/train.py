@@ -1,30 +1,57 @@
-from pathlib import Path
-
-from loguru import logger
-from tqdm import tqdm
-import typer
-
-from cropspectai.config import MODELS_DIR, PROCESSED_DATA_DIR
-
-app = typer.Typer()
-
-
-@app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    features_path: Path = PROCESSED_DATA_DIR / "features.csv",
-    labels_path: Path = PROCESSED_DATA_DIR / "labels.csv",
-    model_path: Path = MODELS_DIR / "model.pkl",
-    # -----------------------------------------
-):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Training some model...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Modeling training complete.")
-    # -----------------------------------------
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    r2_score,
+)
 
 
-if __name__ == "__main__":
-    app()
+def train_model(model, 
+                X_train: pd.DataFrame, 
+                y_train: pd.DataFrame, 
+                X_test: pd.DataFrame, 
+                y_test: pd.DataFrame,
+                scale=True) -> None :
+
+    # Pipeline
+    steps = [
+        ("imputer", SimpleImputer(strategy="mean")),
+    ]
+
+    if scale:
+        steps.append(("scaler", StandardScaler()))
+
+    steps.append(("model", model))
+
+    pipeline = Pipeline(steps)
+
+    # Train
+    pipeline.fit(X_train, y_train)
+
+    # Predict
+    predictions_train = pipeline.predict(X_train)
+    predictions_test = pipeline.predict(X_test)
+
+    # Metrics
+    mae_train = mean_absolute_error(y_train, predictions_train)
+    mape_train = mean_absolute_percentage_error(
+        y_train, predictions_train
+    ) * 100
+
+    # Test metrics
+    mae_test = mean_absolute_error(y_test, predictions_test)
+    mape_test = mean_absolute_percentage_error(
+        y_test, predictions_test
+    ) * 100
+
+    r2_test = r2_score(y_test, predictions_test)
+
+    print(f"MAE (train):  {mae_train:.4f}")
+    print(f"MAPE (train): {mape_train:.2f}%")
+    print(f"MAE (test):   {mae_test:.4f}")
+    print(f"MAPE (test):  {mape_test:.2f}%")
+    print(f"R² (test):    {r2_test:.4f}")
+
+
