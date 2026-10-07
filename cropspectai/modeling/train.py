@@ -48,10 +48,20 @@ def train_model(model,
 
     r2_test = r2_score(y_test, predictions_test)
 
-    print(f"MAE (train):  {mae_train:.4f}")
-    print(f"MAPE (train): {mape_train:.2f}%")
-    print(f"MAE (test):   {mae_test:.4f}")
-    print(f"MAPE (test):  {mape_test:.2f}%")
-    print(f"R² (test):    {r2_test:.4f}")
+    # print(f"MAE (train):  {mae_train:.4f}")
+    # print(f"MAPE (train): {mape_train:.2f}%")
+    # print(f"MAE (test):   {mae_test:.4f}")
+    # print(f"MAPE (test):  {mape_test:.2f}%")
+    # print(f"R² (test):    {r2_test:.4f}")
+
+    metrics = {
+        "MAE (train)": mae_train,
+        "MAPE (train) [%]": mape_train,
+        "MAE (test)": mae_test,
+        "MAPE (test) [%]": mape_test,
+        "R² (test)": r2_test,
+    }
+
+    return pipeline, metrics
 
 
