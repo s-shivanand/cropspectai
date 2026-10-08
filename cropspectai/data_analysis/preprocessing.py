@@ -67,7 +67,7 @@ def drop_duplicates(df: pd.DataFrame, target: str | None = None) -> pd.DataFrame
     # remove row if that target is missing.
     no_label_mask = y.isna().all(axis=1)
 
-    print(f"Rows with no labels: {no_label_mask.sum()}")
+    print(f"Rows with no labels: {no_label_mask.sum()} with target: {target}")
 
     if target is not None:
         # Reconstruct dataframe with features + requested target only.
@@ -79,3 +79,17 @@ def drop_duplicates(df: pd.DataFrame, target: str | None = None) -> pd.DataFrame
     print(f"(After) Shape of dataframe: {df.shape}")
 
     return df
+
+
+def find_sample_count_above_threshold(df: pd.DataFrame, target: str, thresholds: list) -> None:
+
+    col = df[target]
+
+    for threshold in thresholds:
+        count = (col > threshold).sum()
+        print(f"cab > {threshold}: {count} samples")
+
+
+def clip_values_above_threshold(df: pd.DataFrame, target: str, threshold: list) -> pd.DataFrame:
+
+    return df[target].clip(upper=threshold).copy() # values greater than threshold are replaced with threshold  

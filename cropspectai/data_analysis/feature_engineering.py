@@ -263,11 +263,12 @@ def engineer_dataset_features(
 
 if __name__ == "__main__":
     target = "cab"
+    datasplit = "train"
 
     path = (
         config.PROCESSED_PARQUET_DATA_SPLITS_PATH
         / target
-        / "test.parquet"
+        / f"{datasplit}.parquet"
     )
 
     df = pd.read_parquet(path)
@@ -281,7 +282,7 @@ if __name__ == "__main__":
     established_path = (
         config.PROCESSED_PARQUET_DATA_SPLITS_PATH
         / target
-        / "test_established_features.parquet"
+        / f"{datasplit}_established_features.parquet"
     )
 
     df_established.to_parquet(established_path, index=False)
@@ -297,7 +298,7 @@ if __name__ == "__main__":
     all_features_path = (
         config.PROCESSED_PARQUET_DATA_SPLITS_PATH
         / target
-        / "test_all_features.parquet"
+        / f"{datasplit}_all_features.parquet"
     )
 
     df_all.to_parquet(all_features_path, index=False)
