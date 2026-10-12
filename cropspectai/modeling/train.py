@@ -5,6 +5,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_absolute_percentage_error,
     r2_score,
+    root_mean_squared_error
 )
 
 
@@ -34,31 +35,28 @@ def train_model(model,
     predictions_train = pipeline.predict(X_train)
     predictions_test = pipeline.predict(X_test)
 
-    # Metrics
+    # Train metrics
     mae_train = mean_absolute_error(y_train, predictions_train)
     mape_train = mean_absolute_percentage_error(
         y_train, predictions_train
     ) * 100
+    rmse_train = root_mean_squared_error(y_train, predictions_train)
 
     # Test metrics
     mae_test = mean_absolute_error(y_test, predictions_test)
     mape_test = mean_absolute_percentage_error(
         y_test, predictions_test
     ) * 100
-
     r2_test = r2_score(y_test, predictions_test)
-
-    # print(f"MAE (train):  {mae_train:.4f}")
-    # print(f"MAPE (train): {mape_train:.2f}%")
-    # print(f"MAE (test):   {mae_test:.4f}")
-    # print(f"MAPE (test):  {mape_test:.2f}%")
-    # print(f"R² (test):    {r2_test:.4f}")
+    rmse_test = root_mean_squared_error(y_test, predictions_test)
 
     metrics = {
         "MAE (train)": mae_train,
         "MAPE (train) [%]": mape_train,
+        "RMSE (train)": rmse_train,
         "MAE (test)": mae_test,
         "MAPE (test) [%]": mape_test,
+        "RMSE (test)": rmse_test,
         "R² (test)": r2_test,
     }
 
