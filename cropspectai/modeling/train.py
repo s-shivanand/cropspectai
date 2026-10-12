@@ -7,6 +7,7 @@ from sklearn.metrics import (
     r2_score,
     root_mean_squared_error
 )
+from sklearn.model_selection import KFold, cross_val_score
 
 
 def train_model(model, 
@@ -17,16 +18,7 @@ def train_model(model,
                 scale=True) -> None :
 
     # Pipeline
-    steps = [
-        ("imputer", SimpleImputer(strategy="mean")),
-    ]
-
-    if scale:
-        steps.append(("scaler", StandardScaler()))
-
-    steps.append(("model", model))
-
-    pipeline = Pipeline(steps)
+    pipeline = build_pipeline(model, scale)
 
     # Train
     pipeline.fit(X_train, y_train)
@@ -62,4 +54,37 @@ def train_model(model,
 
     return pipeline, metrics
 
+def build_pipeline(model, scale=True):
 
+    steps = [
+        ("imputer", SimpleImputer(strategy="mean")),
+    ]
+
+    if scale:
+        steps.append(("scaler", StandardScaler()))
+
+    steps.append(("model", model))
+
+    pipeline = Pipeline(steps)
+
+    return pipeline
+
+def cross_validate_model(model, X, y, n_splits=5, scale=True, scoring="neg_mean_absolute_percentage_error"):
+
+    cv = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+    scores = cross_val_score(
+    build_pipeline(model, scale=scale),
+    X,
+    y,
+    cv=cv,
+    scoring=scoring,
+    n_jobs=1,
+    )
+
+    if scoring == "neg_mean_absolute_percentage_error":
+        scores = -scores * 100 # positive MAPE
+    else:
+        scores = scores
+
+    return scores
