@@ -13,12 +13,14 @@ RAW_DATA_DIR = DATA_DIR / "raw"
 DOWNSAMPLED_DATA_DIR = DATA_DIR / "downsampled"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
+PREDICTION_DATA_DIR = DATA_DIR / "prediction"
 
 # GHS DATA PATH
 RAW_PARQUET_DATA_SPLITS_PATH = RAW_DATA_DIR / "GreenHyperSpectra" / "parquet" / "labeled_splits"
 PROCESSED_PARQUET_DATA_SPLITS_PATH = PROCESSED_DATA_DIR / "GreenHyperSpectra" / "parquet" / "labeled_splits"
 DOWNSAMPLED_PARQUET_DATA_SPLITS_PATH = DOWNSAMPLED_DATA_DIR / "GreenHyperSpectra" / "parquet" / "labeled_splits"
 
+BASIL_EXPERIMENT_DATA_PATH = PREDICTION_DATA_DIR / "basil_experiment"
 
 MODELS_DIR = PROJ_ROOT / "models"
 
