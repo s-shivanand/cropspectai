@@ -1,0 +1,48 @@
+{
+  "target": "cab",
+  "scoring": "r2",
+  "score_units": "R2",
+  "mean_cv_score": 0.5577679702213832,
+  "std_cv_score": 0.04729078283593739,
+  "fold_scores": [
+    0.6050841808319092,
+    0.5299903154373169,
+    0.5251692533493042,
+    0.5551559925079346,
+    0.4755234122276306,
+    0.6038109064102173,
+    0.6096417307853699
+  ],
+  "best_params": {
+    "tree_method": "hist",
+    "objective": "reg:squarederror",
+    "eval_metric": "rmse",
+    "n_jobs": -1,
+    "random_state": 42,
+    "n_estimators": 1700,
+    "learning_rate": 0.00780868740556862,
+    "max_depth": 6,
+    "min_child_weight": 1.4087694058800868,
+    "subsample": 0.7103102366367319,
+    "colsample_bytree": 0.6792224120042502,
+    "reg_alpha": 0.0,
+    "reg_lambda": 33.61597405221143
+  },
+  "features": [
+    "F1",
+    "FZ",
+    "F3",
+    "F4",
+    "FY",
+    "F5",
+    "FXL",
+    "F6",
+    "F7",
+    "F8",
+    "NIR",
+    "mndvi_as7343",
+    "sipi_as7343",
+    "ci_red_edge_as7343"
+  ],
+  "n_samples": 1606
+}
