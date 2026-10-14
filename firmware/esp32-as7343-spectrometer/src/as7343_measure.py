@@ -18,8 +18,8 @@ from channel_config import CHANNEL_NAMES, WAVELENGTHS, N_CH
 SERIAL_PORT = "/dev/cu.usbserial-0001"
 BAUD_RATE = 115200
 PATH = Path(__file__).resolve().parent.parent / "data"
-# CSV_FILE = channel_config.MISC_DATA_DIR / "as7343_reflectance.csv"
-CSV_FILE = channel_config.RAW_DATA_DIR /"basil_experiment.csv"
+CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv"
+# CSV_FILE = channel_config.RAW_DATA_DIR /"basil_experiment.csv"
 REF_FILE = channel_config.REF_DATA_DIR / "REF.csv"
 
 # Sensor settings used by the firmware. Keep these in sync with main.cpp,
@@ -71,65 +71,12 @@ def normalize(raw_values):
     ]
 
 
-DARK_REF, WHITE_REF = load_references(REF_FILE)
-print(f"Loaded dark and white references from {REF_FILE}")
-invalid_channels = [
-    name for name, dark, white in zip(CHANNEL_NAMES, DARK_REF, WHITE_REF)
-    if white <= dark
-]
-if invalid_channels:
-    print("Warning: white <= dark; reflectance set to 0 for: "
-          + ", ".join(invalid_channels))
-
-# ============================================================
-# CSV SETUP
-# ============================================================
-
 HEADER = (
     ["timestamp", "specimen"]
     + [f"{n}" for n in CHANNEL_NAMES]
     + ["noisy_channels"]
     + list(SENSOR_SETTINGS.keys())
 )
-
-PATH.mkdir(parents=True, exist_ok=True)
-new_file = (not os.path.exists(CSV_FILE)) or os.path.getsize(CSV_FILE) == 0
-if not new_file:
-    with open(CSV_FILE, newline="") as handle:
-        if next(csv.reader(handle), None) != HEADER:
-            raise ValueError(f"Existing CSV header does not match: {CSV_FILE}")
-csv_handle = open(CSV_FILE, "a", newline="")
-writer = csv.writer(csv_handle)
-if new_file:
-    writer.writerow(HEADER)
-    csv_handle.flush()
-
-# ============================================================
-# SERIAL CONNECTION
-# ============================================================
-
-print(f"Opening {SERIAL_PORT}...")
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-
-# Opening the port usually resets the ESP32, so wait for it to boot
-print("Waiting for ESP32 to be ready (about 5 seconds)...")
-time.sleep(2)
-deadline = time.time() + 5
-ready = False
-while time.time() < deadline:
-    line = ser.readline().decode("utf-8", errors="ignore").strip()
-    if line == "AS7343_READY":
-        ready = True
-        break
-
-if not ready:
-    print("Did not see AS7343_READY. Continuing anyway, "
-          "but if measurements fail, press the RST button and restart this script.")
-
-# Make sure live streaming is off and the buffer is clean
-ser.write(b"s")
-time.sleep(0.3)
-ser.reset_input_buffer()
 
 # ============================================================
 # MEASUREMENT
@@ -200,59 +147,120 @@ def check_noise(means, stds):
 # MAIN LOOP
 # ============================================================
 
-print("\nReady.")
-print("Commands at the label prompt:")
-print("  type a label  -> use it for the next measurement (e.g. leaf_01)")
-print("  just Enter    -> reuse the previous label")
-print("  q             -> quit\n")
 
-last_label = ""
-count = 0
+def main(on_measurement=None, csv_file=None):
+    """Run interactive measurements, optionally handling each saved CSV row."""
+    global DARK_REF, WHITE_REF, ser
+    csv_file = Path(csv_file) if csv_file is not None else CSV_FILE
 
-try:
-    while True:
-        prompt = f"Label [{last_label}]: " if last_label else "Label: "
-        entry = input(prompt).strip()
+    DARK_REF, WHITE_REF = load_references(REF_FILE)
+    print(f"Loaded dark and white references from {REF_FILE}")
+    invalid_channels = [
+        name for name, dark, white in zip(CHANNEL_NAMES, DARK_REF, WHITE_REF)
+        if white <= dark
+    ]
+    if invalid_channels:
+        print("Warning: white <= dark; reflectance set to 0 for: "
+              + ", ".join(invalid_channels))
 
-        if entry.lower() == "q":
-            break
-        label = entry if entry else last_label
-        if not label:
-            print("Please enter a label first.")
-            continue
-
-        print("Measuring...")
-        result = take_measurement()
-        if result is None:
-            print("Measurement failed, nothing saved. Try again.\n")
-            continue
-
-        reflectance, reflectance_stds = normalized_statistics(result)
-        noisy = check_noise(reflectance, reflectance_stds)
-        last_label = label
-
-        row = (
-            [datetime.now().isoformat(timespec="seconds"), label]
-            + [round(r, 6) for r in reflectance]
-            + ["; ".join(noisy)]
-            + list(SENSOR_SETTINGS.values())
-        )
-        writer.writerow(row)
+    csv_file.parent.mkdir(parents=True, exist_ok=True)
+    new_file = (not os.path.exists(csv_file)) or os.path.getsize(csv_file) == 0
+    if not new_file:
+        with open(csv_file, newline="") as handle:
+            if next(csv.reader(handle), None) != HEADER:
+                raise ValueError(f"Existing CSV header does not match: {csv_file}")
+    csv_handle = open(csv_file, "a", newline="")
+    writer = csv.writer(csv_handle)
+    if new_file:
+        writer.writerow(HEADER)
         csv_handle.flush()
-        count += 1
 
-        print(f"Saved #{count} ({label}):")
-        print("  " + "  ".join(f"{n}={r:.4f}" for n, r in zip(CHANNEL_NAMES, reflectance)))
+    # ============================================================
+    # SERIAL CONNECTION
+    # ============================================================
 
-        if noisy:
-            print("  Warning, noisy channels (std > "
-                  f"{int(NOISE_WARN_FRACTION * 100)}% of mean): " + ", ".join(noisy))
-        if max(value for reading in result for value in reading) > 60000:
-            print("  Warning, a channel is near saturation. Lower the gain or LED current.")
-        print()
+    print(f"Opening {SERIAL_PORT}...")
+    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
 
-finally:
+    # Opening the port usually resets the ESP32, so wait for it to boot
+    print("Waiting for ESP32 to be ready (about 5 seconds)...")
+    time.sleep(2)
+    deadline = time.time() + 5
+    ready = False
+    while time.time() < deadline:
+        line = ser.readline().decode("utf-8", errors="ignore").strip()
+        if line == "AS7343_READY":
+            ready = True
+            break
+
+    if not ready:
+        print("Did not see AS7343_READY. Continuing anyway, "
+              "but if measurements fail, press the RST button and restart this script.")
+
+    # Make sure live streaming is off and the buffer is clean
     ser.write(b"s")
-    ser.close()
-    csv_handle.close()
-    print(f"Done. {count} measurements saved to {CSV_FILE}")
+    time.sleep(0.3)
+    ser.reset_input_buffer()
+
+    print("\nReady.")
+    print("Commands at the label prompt:")
+    print("  type a label  -> use it for the next measurement (e.g. leaf_01)")
+    print("  just Enter    -> reuse the previous label")
+    print("  q             -> quit\n")
+
+    last_label = ""
+    count = 0
+
+    try:
+        while True:
+            prompt = f"Label [{last_label}]: " if last_label else "Label: "
+            entry = input(prompt).strip()
+
+            if entry.lower() == "q":
+                break
+            label = entry if entry else last_label
+            if not label:
+                print("Please enter a label first.")
+                continue
+
+            print("Measuring...")
+            result = take_measurement()
+            if result is None:
+                print("Measurement failed, nothing saved. Try again.\n")
+                continue
+
+            reflectance, reflectance_stds = normalized_statistics(result)
+            noisy = check_noise(reflectance, reflectance_stds)
+            last_label = label
+
+            row = (
+                [datetime.now().isoformat(timespec="seconds"), label]
+                + [round(r, 6) for r in reflectance]
+                + ["; ".join(noisy)]
+                + list(SENSOR_SETTINGS.values())
+            )
+            writer.writerow(row)
+            csv_handle.flush()
+            count += 1
+
+            print(f"Saved #{count} ({label}):")
+            print("  " + "  ".join(f"{n}={r:.4f}" for n, r in zip(CHANNEL_NAMES, reflectance)))
+
+            if noisy:
+                print("  Warning, noisy channels (std > "
+                      f"{int(NOISE_WARN_FRACTION * 100)}% of mean): " + ", ".join(noisy))
+            if max(value for reading in result for value in reading) > 60000:
+                print("  Warning, a channel is near saturation. Lower the gain or LED current.")
+            if on_measurement is not None:
+                on_measurement(dict(zip(HEADER, row)))
+            print()
+
+    finally:
+        ser.write(b"s")
+        ser.close()
+        csv_handle.close()
+        print(f"Done. {count} measurements saved to {csv_file}")
+
+
+if __name__ == "__main__":
+    main()

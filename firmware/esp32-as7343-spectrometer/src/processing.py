@@ -15,12 +15,12 @@ def save_processed_data(X, path):
 
 if __name__ == "__main__":
     # basil data
-    RAW_FILE = channel_config.RAW_DATA_DIR /"basil_experiment.csv"
-    output_path = channel_config.PROCESSED_DATA_DIR / "X_new.csv"
+    # RAW_FILE = channel_config.RAW_DATA_DIR /"basil_experiment.csv"
+    # output_path = channel_config.PROCESSED_DATA_DIR / "X_new.csv"
 
     #misc data
-    # RAW_FILE = channel_config.MISC_DATA_DIR /"as7343_reflectance.csv"
-    # output_path = channel_config.MISC_DATA_DIR / "X_new.csv"
+    RAW_FILE = channel_config.MISC_DATA_DIR /"reflectance.csv"
+    output_path = channel_config.MISC_DATA_DIR / "X_new.csv"
     
     X = split_dataset_into_X(RAW_FILE)
     print(f"Shape after splitting: {X.shape}")
