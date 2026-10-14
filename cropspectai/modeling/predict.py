@@ -1,4 +1,5 @@
 import joblib
+import pandas as pd
 
 
 def predict_model(X: pd.DataFrame, model_path):

@@ -24,6 +24,7 @@ dependencies = [
     "pandas>=3.0.6",
     "pip",
     "python-dotenv",
+    "pyserial>=3.5",
     "ruff",
     "scikit-learn>=1.9.1",
     "shap>=0.52.0",
