@@ -1,0 +1,14 @@
+// Shared channel order, peak wavelength (nm), and plot color.
+// Python reads this file; C++ includes it using the CHANNEL macro.
+CHANNEL(F1, 405, "#7F00FF")
+CHANNEL(F2, 425, "#4B0082")
+CHANNEL(FZ, 450, "#0000FF")
+CHANNEL(F3, 475, "#00BFFF")
+CHANNEL(F4, 515, "#00A000")
+CHANNEL(FY, 555, "#FFFF00")
+CHANNEL(F5, 550, "#9ACD32")
+CHANNEL(FXL, 600, "#FFA500")
+CHANNEL(F6, 640, "#FF4500")
+CHANNEL(F7, 690, "#FF0000")
+CHANNEL(F8, 745, "#8B0000")
+CHANNEL(NIR, 855, "#555555")
