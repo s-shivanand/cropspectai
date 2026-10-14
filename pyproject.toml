@@ -23,7 +23,6 @@ dependencies = [
     "optuna>=5.0.0",
     "pandas>=3.0.6",
     "pip",
-    "pyserial>=3.5",
     "python-dotenv",
     "ruff",
     "scikit-learn>=1.9.1",

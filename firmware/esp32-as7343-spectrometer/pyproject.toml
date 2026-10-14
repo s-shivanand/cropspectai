@@ -1,0 +1,22 @@
+[project]
+name = "esp32-as7343-spectrometer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "s-shivanand", email = "sharana.shivanand@gmail.com" }
+]
+requires-python = ">=3.14.4"
+dependencies = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.1",
+    "pandas>=3.0.6",
+    "pyserial>=3.5",
+]
+
+[project.scripts]
+esp32-as7343-spectrometer = "esp32_as7343_spectrometer:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
