@@ -16,19 +16,18 @@ import channel_config  # noqa: E402
 
 # Settings
 
-# Model
-MODEL_PATH = config.MODELS_DIR / "xgb_v_01.joblib"
-MODEL_CONFIG_PATH = config.MODELS_DIR / "xgb_best_parameters_v_01.json"
-
-# Input and output
+#model
+MODEL_VERSION = "v_04"
+MODEL_PATH = config.MODELS_DIR / f"xgb_{MODEL_VERSION}.joblib"
+MODEL_CONFIG_PATH = config.MODELS_DIR / f"xgb_best_parameters_{MODEL_VERSION}.json"
 
 #trail data
-# CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv"
-# PREDICTION_FILE = config.PREDICTION_DATA_DIR / "misc" / "batch_prediction.csv"
+CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv" # input
+PREDICTION_FILE = config.PREDICTION_DATA_DIR / "misc" / f"batch_prediction_{MODEL_VERSION}.csv" # output
 
 #basil experiment data
-CSV_FILE = channel_config.RAW_DATA_DIR / "basil_experiment.csv" # input
-PREDICTION_FILE = config.BASIL_EXPERIMENT_DATA_PATH / "batch_prediction.csv" # output
+# CSV_FILE = channel_config.RAW_DATA_DIR / "basil_experiment.csv" # input
+# PREDICTION_FILE = config.BASIL_EXPERIMENT_DATA_PATH / f"batch_prediction_{MODEL_VERSION}.csv" # output
 
 CHANNELS = list(config.AS7343_CHANNELS)
 MEASUREMENT_COLUMNS = ["timestamp", "specimen", *CHANNELS, "noisy_channels"]
