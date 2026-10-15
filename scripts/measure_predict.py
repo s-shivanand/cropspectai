@@ -1,4 +1,4 @@
-"""Measure AS7343 reflectance and predict cab: python measure_predict.py."""
+"""Measure AS7343 reflectance and predict cab: python scripts/measure_predict.py."""
 
 import csv
 import json
@@ -6,6 +6,7 @@ import math
 import sys
 
 import pandas as pd
+from serial.tools import list_ports
 
 from cropspectai import config
 from cropspectai.data_analysis.feature_engineering import add_all_features
@@ -24,22 +25,29 @@ MODEL_PATH = config.MODELS_DIR / "xgb_v_01.joblib"
 MODEL_CONFIG_PATH = config.MODELS_DIR / "xgb_best_parameters_v_01.json"
 
 #trail data
-# CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv" # input
-# PREDICTION_FILE = config.PREDICTION_DATA_DIR / "misc" / "prediction.csv" # output
+CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv" # input
+PREDICTION_FILE = config.PREDICTION_DATA_DIR / "misc" / "measure_prediction.csv" # output
 
 #basil experiment data
-CSV_FILE = channel_config.RAW_DATA_DIR / "basil_experiment.csv" # input
-PREDICTION_FILE = config.BASIL_EXPERIMENT_DATA_PATH / "prediction.csv" # output
+# CSV_FILE = channel_config.RAW_DATA_DIR / "basil_experiment.csv" # input
+# PREDICTION_FILE = config.BASIL_EXPERIMENT_DATA_PATH / "measure_prediction.csv" # output
 
 
 CHANNELS = list(config.AS7343_CHANNELS)
-PREDICTION_COLUMNS = ["timestamp", "specimen", *CHANNELS, "noisy_channels", "cab"]
+MEASUREMENT_COLUMNS = ["timestamp", "specimen", *CHANNELS, "noisy_channels"]
 
 
 def main():
     """Append a prediction for each successfully saved measurement."""
+    if as7343_measure.SERIAL_PORT not in {port.device for port in list_ports.comports()}:
+        sys.exit(
+            "esp32 device not connected. Connect the ESP32 and check SERIAL_PORT "
+            "in as7343_measure.py."
+        )
+
     with MODEL_CONFIG_PATH.open() as handle:
         features = json.load(handle)["features"]
+    prediction_columns = list(dict.fromkeys([*MEASUREMENT_COLUMNS, *features, "cab"]))
     if not MODEL_PATH.is_file():
         raise FileNotFoundError(MODEL_PATH)
 
@@ -47,11 +55,23 @@ def main():
     new_file = not PREDICTION_FILE.exists() or PREDICTION_FILE.stat().st_size == 0
     if not new_file:
         with PREDICTION_FILE.open(newline="") as handle:
-            if next(csv.reader(handle), None) != PREDICTION_COLUMNS:
-                raise ValueError(f"Existing CSV header does not match: {PREDICTION_FILE}")
+            existing_columns = next(csv.reader(handle), None)
+        if existing_columns == [*MEASUREMENT_COLUMNS, "cab"]:
+            existing = pd.read_csv(PREDICTION_FILE, keep_default_na=False)
+            X = existing[CHANNELS].apply(pd.to_numeric, errors="raise")
+            X = add_all_features(X)[features]
+            for feature in features:
+                existing[feature] = X[feature]
+            existing[prediction_columns].to_csv(PREDICTION_FILE, index=False)
+            print("Added model features to existing CSV.")
+        elif existing_columns != prediction_columns:
+            raise ValueError(
+                f"Existing CSV header does not match: {PREDICTION_FILE}. "
+                "Choose a new output path or move the old CSV before running again."
+            )
 
     with PREDICTION_FILE.open("a", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=PREDICTION_COLUMNS)
+        writer = csv.DictWriter(handle, fieldnames=prediction_columns)
         if new_file:
             writer.writeheader()
             handle.flush()
@@ -67,7 +87,8 @@ def main():
                 print(f"  Prediction failed: {exc}. Measurement remains saved in firmware CSV.")
                 return
 
-            row = {name: measurement[name] for name in PREDICTION_COLUMNS[:-1]}
+            row = {name: measurement[name] for name in MEASUREMENT_COLUMNS}
+            row.update(X.iloc[0].to_dict())
             row["cab"] = cab
             writer.writerow(row)
             handle.flush()
