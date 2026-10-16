@@ -104,6 +104,24 @@ class MeasurementTests(unittest.TestCase):
         self.assertFalse(self.predictions.exists())
         self.assertFalse(self.connections)
 
+    def test_saved_mndvi_is_never_clipped_to_the_display_scale(self):
+        cases = [(0.6, 0.2, 0.35, 4.0), (0.2, 0.4, 0.1, -0.5),
+                 (0.3, 0.3, 0.3, None)]
+        with patch.object(workflow, "predict_model", return_value=[10.0]), \
+                workflow._prediction_output() as (features, writer, handle):
+            for nir, red, blue, expected in cases:
+                measurement = dict.fromkeys(workflow.CHANNELS, 0.2)
+                measurement.update(NIR=nir, F7=red, FZ=blue, timestamp="2026-10-16T12:00:00",
+                                   specimen="mndvi_check", noisy_channels="")
+                result = workflow._save_prediction(measurement, features, writer, handle)
+                self.assertIsNotNone(result.cab)
+        rows = self.rows(self.predictions)
+        for row, (_, _, _, expected) in zip(rows, cases):
+            if expected is None:
+                self.assertTrue(math.isnan(float(row["mndvi_as7343"])))
+            else:
+                self.assertAlmostEqual(float(row["mndvi_as7343"]), expected)
+
     def test_prediction_failure_keeps_measurement(self):
         with patch.object(workflow, "predict_model", side_effect=ValueError("model failed")):
             result = workflow.measure_and_predict("leaf_01")
@@ -152,9 +170,14 @@ class MeasurementTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertFalse(self.connections)
         app.text_input[0].set_value("leaf_ui")
-        app.button[0].click().run()
+        app.button(key="measure_predict").click().run()
         self.assertFalse(app.exception)
         self.assertEqual(len(app.metric), 1)
+        self.assertEqual(len(app.get("vega_lite_chart")), 1)
+        self.assertTrue(any("Average of 10 spectral readings" in item.value for item in app.markdown))
+        self.assertTrue(any(item.value == "Predicted Cab" for item in app.subheader))
+        self.assertTrue(any("Specimen:" in item.value and "leaf_ui" in item.value
+                            and "Measured at" in item.value for item in app.markdown))
         self.assertIn("µg/cm²", app.metric[0].value)
         self.assertEqual(self.rows(self.measurements)[0]["specimen"], "leaf_ui")
         self.assertEqual(len(self.rows(self.predictions)), 1)
@@ -163,7 +186,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(len(self.connections), 1)
         # A new failed attempt must not display the preceding successful prediction.
         with patch.object(workflow.list_ports, "comports", return_value=[]):
-            app.button[0].click().run()
+            app.button(key="measure_predict").click().run()
         self.assertFalse(app.exception)
         self.assertEqual(len(app.metric), 0)
         self.assertIn("not connected", app.error[0].value)
@@ -171,15 +194,16 @@ class MeasurementTests(unittest.TestCase):
     def test_app_validation_and_prediction_error(self):
         app = AppTest.from_file(str(workflow.config.PROJ_ROOT / "app/streamlit_app.py"))
         app.run()
-        app.button[0].click().run()
+        app.button(key="measure_predict").click().run()
         self.assertIn("specimen label", app.warning[0].value)
         self.assertFalse(self.connections)
         app.text_input[0].set_value("leaf_ui")
         with patch.object(workflow, "predict_model", side_effect=ValueError("model failed")):
-            app.button[0].click().run()
+            app.button(key="measure_predict").click().run()
         self.assertFalse(app.exception)
         self.assertEqual(len(app.metric), 0)
         self.assertIn("spectral measurement is saved", app.error[0].value)
+        self.assertEqual(len(app.get("vega_lite_chart")), 1)
         self.assertEqual(len(self.rows(self.measurements)), 1)
 
 

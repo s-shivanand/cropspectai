@@ -7,13 +7,21 @@ uv run streamlit run app/streamlit_app.py
 ```
 
 Open the local URL printed by Streamlit. Connect the ESP32, position the leaf,
-enter a specimen label, and press **Measure and predict**. Keep the leaf in place
-until acquisition finishes. The app shows predicted Cab in µg/cm², the specimen
-and timestamp, and any measurement warnings.
+and press **Start reading** under **Reading sensor** to see live reflectance bars
+for the twelve spectral channels. The chart uses the saved dark and white
+references, with reflectance on a fixed 0–1 scale. Preview readings are not saved.
+
+Enter a specimen label below the chart and press **Measure and predict**. The
+preview stops automatically before the measurement begins. A message explains
+that ten readings are being averaged; the chart then shows the averaged spectrum
+used for prediction, including when prediction fails after a saved measurement.
+Keep the leaf in place until acquisition finishes. The app shows
+predicted Cab in µg/cm² and any measurement warnings. Press **Start reading** to
+resume the preview, or **Stop reading** to stop it without taking a measurement.
 
 The app uses the serial port and saved references configured in
 `firmware/esp32-as7343-spectrometer/src/as7343_measure.py`, and the model and CSV
-paths configured in `scripts/measure_predict.py`. Each button press opens the
+paths configured in `scripts/measure_predict.py`. Each **Measure and predict** press opens the
 connection, acquires the existing ten-reading batch, saves the measurement and
 prediction, and closes the connection. A prediction failure leaves the spectral
 measurement saved. Ordinary app reruns do not acquire another measurement.
