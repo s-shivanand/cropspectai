@@ -26,6 +26,21 @@ connection, acquires the existing ten-reading batch, saves the measurement and
 prediction, and closes the connection. A prediction failure leaves the spectral
 measurement saved. Ordinary app reruns do not acquire another measurement.
 
+After a successful prediction, press **Track** below the Cab value to save that
+prediction to `tracked_specimens/<specimen>.csv` alongside the usual prediction
+CSV. The specimen CSV has exactly the same columns and values, including model
+features. Future app measurements with the same specimen label append to both
+files for the rest of the session. While enabled, **Stop tracking** replaces
+**Track**. Stopping keeps saved records and returns future measurements to central
+CSV saves only. Tracking can be resumed without duplicating the displayed result.
+After Reset or an app restart, an existing specimen file prompts **Continue to
+track** or **Don't track**. Until you continue, predictions are saved only in the
+central CSV. Continuing also adds the currently displayed prediction to the
+specimen file. Other specimen labels are not tracked until explicitly enabled.
+Reset clears the screen and session choices without removing saved tracking
+files. Labels containing filename separators are safely
+encoded in the filename while retaining the original label inside the CSV.
+
 The terminal workflow remains available:
 
 ```sh

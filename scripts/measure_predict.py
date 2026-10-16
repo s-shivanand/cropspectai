@@ -52,6 +52,7 @@ class MeasurementResult:
     cab: float | None = None
     warnings: list[str] = field(default_factory=list)
     prediction_error: str | None = None
+    prediction_row: dict | None = None
 
 
 def _check_device():
@@ -116,6 +117,7 @@ def _save_prediction(measurement, features, writer, handle):
     writer.writerow(row)
     handle.flush()
     result.cab = cab
+    result.prediction_row = row.copy()
     print(f"  cab = {cab:.4f} µg/cm²")
     return result
 

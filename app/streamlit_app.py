@@ -19,6 +19,8 @@ from scripts import measure_predict as workflow  # noqa: E402
 from app.live_sensor import get_live_sensor  # noqa: E402
 from app.greenness import GAUGE_WIDTH, SPECTRUM_HEIGHT, greenness_gauge, spectrum_mndvi  # noqa: E402
 from app.cab_scale import TOOLSRTM_RANGE_URL, cab_scale  # noqa: E402
+from app.tracking import append_tracking_prediction, specimen_tracking_path  # noqa: E402
+from app.tracking_history import render_tracking_history  # noqa: E402
 
 st.set_page_config(page_title="CropSpectAI", page_icon="🍃", layout="centered")
 
@@ -238,19 +240,38 @@ st.markdown(
             overflow: visible;
             text-align: center;
         }
-        @keyframes result-appear {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
         .st-key-result_card {
-            animation: result-appear 300ms ease-out;
+            scroll-margin-top: 4.5rem;
+        }
+        .st-key-measurement_status [data-testid="stSpinner"] {
+            padding: 0.9rem 1.1rem;
+            background: #172b24;
+            border: 1px solid #7dd3fc80;
+            border-radius: 0.85rem;
+            box-shadow: 0 4px 18px #00000026;
+        }
+        [data-testid="stMain"] .st-key-measurement_status [data-testid="stSpinner"] p {
+            color: #bae6fd;
+            font-size: 1.125rem;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+        [data-testid="stMain"]:has(.st-key-measurement_status [data-testid="stSpinner"])
+        .st-key-result_card {
+            opacity: 0.12 !important;
+            pointer-events: none;
+        }
+        .st-key-result_card:has(.result-arriving):not([data-result-revealed]) {
+            max-height: 0;
+            padding-block: 0;
+            opacity: 0;
+            overflow: hidden;
         }
         @media (max-width: 640px) {
             .st-key-spectrum_panel:has(.spectrum-ready) { max-height: 1200px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .st-key-spectrum_panel { transition: none; }
-            .st-key-result_card { animation: none; }
         }
     </style>
     """,
@@ -266,6 +287,7 @@ live_sensor = get_live_sensor()
 if "sensor_session" not in st.session_state:
     st.session_state.sensor_session = uuid4().hex
 sensor_session = st.session_state.sensor_session
+tracking_choices = st.session_state.setdefault("tracking_choices", {})
 
 
 def reset_app():
@@ -278,6 +300,7 @@ def reset_app():
     for key in (
         "specimen_label", "measurement_result", "measurement_error",
         "averaged_spectrum", "live_requested", "live_action_error", "last_displayed_spectrum",
+        "current_tracking_path", "tracking_error", "tracking_choices", "reveal_result",
     ):
         st.session_state.pop(key, None)
     # A fresh owner hides any last frame or error retained by the stopped reader.
@@ -368,7 +391,7 @@ def reading_sensor():
                 labelPadding=8, domain=False, ticks=False,
                 gridColor="#688473", gridOpacity=0.25, gridDash=[3, 5],
             ).configure_view(
-                fill="#102018", stroke="#304b3c", strokeOpacity=0.5, cornerRadius=10,
+                fill="#102018", strokeOpacity=0,
             )
             plot_column, greenness_column = st.columns([6, 1.3], gap="small")
             with plot_column:
@@ -414,17 +437,26 @@ with st.container(horizontal=True, horizontal_alignment="center"):
     st.button("Reset", key="reset_app", on_click=reset_app,
               help="Stop reading and clear the screen. Saved measurements are kept.")
 
+# Keep the progress message in its own stable slot, so Streamlit never reuses
+# the previous result's container for the spinner during a measurement.
+measurement_status = st.empty()
+
 if submitted:
     if not specimen.strip():
         st.warning("Please enter a specimen label before measuring.")
     else:
         # Clear stale results so a failed attempt cannot look like a new prediction.
         st.session_state.pop("measurement_result", None)
+        st.session_state.pop("reveal_result", None)
         st.session_state.pop("measurement_error", None)
         st.session_state.pop("averaged_spectrum", None)
+        st.session_state.pop("current_tracking_path", None)
+        st.session_state.pop("tracking_error", None)
         try:
             count = workflow.as7343_measure.SENSOR_SETTINGS["n_avg"]
-            with st.container(horizontal=True, horizontal_alignment="center"):
+            with measurement_status.container(
+                key="measurement_status", horizontal=True, horizontal_alignment="center",
+            ):
                 with st.spinner(
                     f"Taking {count} readings and calculating their average. Keep the leaf in place…",
                     width="content",
@@ -436,6 +468,20 @@ if submitted:
                         st.session_state.measurement_result.measurement[name]
                         for name in workflow.channel_config.CHANNEL_NAMES
                     )
+                    st.session_state.reveal_result = True
+                    prediction = st.session_state.measurement_result
+                    if prediction.cab is not None:
+                        tracking_file = specimen_tracking_path(
+                            prediction.measurement["specimen"], workflow.PREDICTION_FILE,
+                        )
+                        if tracking_choices.get(prediction.measurement["specimen"]) is True:
+                            try:
+                                append_tracking_prediction(prediction.prediction_row, tracking_file)
+                                st.session_state.current_tracking_path = str(tracking_file)
+                            except Exception as exc:
+                                st.session_state.tracking_error = (
+                                    f"Prediction saved, but specimen tracking failed: {exc}"
+                                )
         except Exception as exc:
             st.session_state.measurement_error = str(exc)
         st.rerun()
@@ -445,7 +491,10 @@ if st.session_state.get("measurement_error"):
 
 result = st.session_state.get("measurement_result")
 if result is not None:
+    reveal_result = st.session_state.pop("reveal_result", False)
     with st.container(key="result_card", border=True, gap="small"):
+        if reveal_result:
+            st.markdown('<span class="result-arriving" hidden></span>', unsafe_allow_html=True)
         st.subheader("Predicted Cab", anchor=False, text_alignment="center")
         specimen_label = escape(str(result.measurement["specimen"]))
         measured_at = escape(str(result.measurement["timestamp"]).replace("T", " "))
@@ -460,6 +509,49 @@ if result is not None:
                 value=f"{result.cab:.4f} µg/cm²",
                 label_visibility="collapsed",
             )
+            tracking_file = specimen_tracking_path(result.measurement["specimen"], workflow.PREDICTION_FILE)
+            already_tracked = st.session_state.get("current_tracking_path") == str(tracking_file)
+            label = result.measurement["specimen"]
+            tracking_enabled = tracking_choices.get(label) is True
+            needs_choice = tracking_file.exists() and label not in tracking_choices and not already_tracked
+            enable_tracking = False
+            if tracking_enabled:
+                with st.container(horizontal=True, horizontal_alignment="center"):
+                    if st.button(
+                        "Stop tracking", key="stop_tracking",
+                        help="Stop specimen-specific saves for this session. Saved records are kept.",
+                    ):
+                        tracking_choices[label] = False
+                        st.session_state.pop("tracking_error", None)
+                        st.rerun()
+            elif needs_choice:
+                st.caption(f"Specimen: {label} already has a tracking file. Continue to track?")
+                with st.container(horizontal=True, horizontal_alignment="center"):
+                    enable_tracking = st.button("Continue to track", key="continue_tracking")
+                    if st.button("Don't track", key="decline_tracking"):
+                        tracking_choices[label] = False
+                        st.session_state.pop("tracking_error", None)
+                        st.rerun()
+            else:
+                with st.container(horizontal=True, horizontal_alignment="center"):
+                    enable_tracking = st.button(
+                        "Track", key="track_specimen",
+                        help="Save this prediction and future measurements of this specimen separately.",
+                    )
+            if enable_tracking:
+                try:
+                    if not already_tracked:
+                        append_tracking_prediction(getattr(result, "prediction_row", None), tracking_file)
+                    tracking_choices[label] = True
+                    st.session_state.current_tracking_path = str(tracking_file)
+                    st.session_state.pop("tracking_error", None)
+                except Exception as exc:
+                    st.session_state.tracking_error = str(exc)
+                st.rerun()
+            if tracking_enabled:
+                st.caption(f"Tracking enabled · Specimen: {label}")
+            if st.session_state.get("tracking_error"):
+                st.error(st.session_state.tracking_error)
             st.image(
                 cab_scale(result.cab), width="stretch",
                 alt="Cab scale from 0 to 100 µg/cm², with 20–80 highlighted and the prediction marked.",
@@ -485,3 +577,55 @@ if result is not None:
                 )
             else:
                 st.warning(warning)
+
+    if tracking_choices.get(result.measurement["specimen"]) is True:
+        st.divider()
+        render_tracking_history(
+            specimen_tracking_path(result.measurement["specimen"], workflow.PREDICTION_FILE),
+            result.measurement["specimen"],
+        )
+
+    if reveal_result:
+        # Run once per completed measurement, never on tracking or preview reruns.
+        st.iframe(
+            """
+            <script>
+            const doc = window.parent.document;
+            const reducedMotion = window.parent.matchMedia(
+                '(prefers-reduced-motion: reduce)'
+            ).matches;
+            let attempts = 0;
+            function revealResult() {
+                const card = doc.querySelector('.st-key-result_card:has(.result-arriving)');
+                if (!card) {
+                    if (++attempts < 120) requestAnimationFrame(revealResult);
+                    return;
+                }
+                card.dataset.resultRevealed = 'true';
+                const style = window.parent.getComputedStyle(card);
+                const height = card.getBoundingClientRect().height;
+                const scrollToResult = () => card.scrollIntoView({
+                    behavior: reducedMotion ? 'instant' : 'smooth', block: 'start'
+                });
+                if (reducedMotion) {
+                    scrollToResult();
+                    return;
+                }
+                const previousOverflow = card.style.overflow;
+                card.style.overflow = 'hidden';
+                const entrance = card.animate([
+                    {height: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: 0},
+                    {height: `${height}px`, paddingTop: style.paddingTop,
+                     paddingBottom: style.paddingBottom, opacity: 1}
+                ], {duration: 450, easing: 'ease-in-out'});
+                entrance.onfinish = () => {
+                    card.style.overflow = previousOverflow;
+                    // Wait for the final layout before choosing the scroll destination.
+                    requestAnimationFrame(scrollToResult);
+                };
+            }
+            requestAnimationFrame(revealResult);
+            </script>
+            """,
+            height=1, tab_index=-1, alt="Reveal the new prediction",
+        )
