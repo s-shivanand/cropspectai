@@ -5,7 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.tracking import append_tracking_prediction, specimen_tracking_path
+from app.tracking import (
+    append_tracking_prediction,
+    read_tracking_predictions,
+    specimen_tracking_path,
+)
 
 
 class TrackingTests(unittest.TestCase):
@@ -45,6 +49,30 @@ class TrackingTests(unittest.TestCase):
                 append_tracking_prediction({**row, "new_feature": 1}, path)
             with self.assertRaises(ValueError):
                 append_tracking_prediction({**row, "specimen": "Leaf"}, path)
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_semicolon_file_keeps_format_and_quoted_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sun_no_water.csv"
+            row = {"timestamp": "2026-10-18T10:00:00", "specimen": "sun_no_water",
+                   "noisy_channels": "FZ (6.5%); F8 (5.4%)", "cab": 34.25}
+            with path.open("w", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(row), delimiter=";")
+                writer.writeheader()
+                writer.writerow(row)
+            path.write_bytes(path.read_bytes().rstrip(b"\r\n"))
+            before = path.read_bytes()
+            append_tracking_prediction({**row, "cab": 35.5}, path)
+            self.assertTrue(path.read_bytes().startswith(before))
+            rows = read_tracking_predictions(path)
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["noisy_channels"], row["noisy_channels"])
+            self.assertEqual(rows[1]["cab"], "35.5")
+            before = path.read_bytes()
+            with self.assertRaisesRegex(ValueError, "different feature columns"):
+                append_tracking_prediction({**row, "new_feature": 1}, path)
+            with self.assertRaisesRegex(ValueError, "different specimen label"):
+                append_tracking_prediction({**row, "specimen": "other"}, path)
             self.assertEqual(path.read_bytes(), before)
 
 

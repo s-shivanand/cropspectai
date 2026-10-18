@@ -40,6 +40,17 @@ class TrackingHistoryTests(unittest.TestCase):
             self.assertEqual(data["cab"].tolist(), [34.5])
             self.assertTrue(data["mndvi_as7343"].isna().all())
 
+    def test_semicolon_file_loads_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sun_no_water.csv"
+            path.write_text(
+                "timestamp;specimen;cab;mndvi_as7343;noisy_channels\n"
+                '2026-10-18T10:00:00;sun_no_water;34.5;0.8;"FZ (6.5%); F8 (5.4%)"\n'
+            )
+            data = load_tracking_history(path, "sun_no_water")
+            self.assertEqual(data["cab"].tolist(), [34.5])
+            self.assertEqual(data["mndvi_as7343"].tolist(), [0.8])
+
 
 if __name__ == "__main__":
     unittest.main()
