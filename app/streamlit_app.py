@@ -506,7 +506,7 @@ if result is not None:
         if result.cab is not None:
             st.metric(
                 label="Predicted Cab",
-                value=f"{result.cab:.4f} µg/cm²",
+                value=f"{result.cab:.1f} µg/cm²",
                 label_visibility="collapsed",
             )
             tracking_file = specimen_tracking_path(result.measurement["specimen"], workflow.PREDICTION_FILE)

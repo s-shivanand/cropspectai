@@ -52,10 +52,12 @@ def render_tracking_history(path, specimen):
             ).encode(
                 x=alt.X("timestamp:T", title="Measurement time",
                         axis=alt.Axis(labelAngle=-20, labelOverlap=True, tickCount=4)),
-                y=alt.Y(f"{column}:Q", title=axis_title, scale=alt.Scale(zero=False)),
+                y=alt.Y(f"{column}:Q", title=axis_title, scale=alt.Scale(zero=False),
+                        axis=alt.Axis(format=".1f") if column == "cab" else alt.Axis()),
                 order=alt.Order("timestamp:T"),
                 tooltip=[alt.Tooltip("timestamp:T", title="Measured at", format="%d %b %Y, %H:%M:%S"),
-                         alt.Tooltip(f"{column}:Q", title=axis_title, format=".4f")],
+                         alt.Tooltip(f"{column}:Q", title=axis_title,
+                                     format=".1f" if column == "cab" else ".4f")],
             ).properties(
                 height=220, background="transparent",
                 padding={"top": 12, "right": 12, "bottom": 8, "left": 8},

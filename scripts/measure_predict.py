@@ -118,7 +118,7 @@ def _save_prediction(measurement, features, writer, handle):
     handle.flush()
     result.cab = cab
     result.prediction_row = row.copy()
-    print(f"  cab = {cab:.4f} µg/cm²")
+    print(f"  cab = {cab:.1f} µg/cm²")
     return result
 
 

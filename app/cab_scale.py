@@ -10,7 +10,7 @@ TOOLSRTM_RANGE_URL = (
 
 def cab_scale(value):
     available = value is not None and math.isfinite(value)
-    actual = f"{value:.4f}" if available else "unavailable"
+    actual = f"{value:.1f}" if available else "unavailable"
     marker = ""
     note = "Cab (µg/cm²)"
     if available:

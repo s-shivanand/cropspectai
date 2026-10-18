@@ -67,7 +67,7 @@ def greenness_gauge(value):
         f'<text x="60" y="{bottom + 30}" text-anchor="middle" fill="#edf5ef" '
         f'font-size="18" font-weight="600">MNDVI {actual}</text>'
         f'<text x="60" y="{bottom + 51}" text-anchor="middle" fill="#c4f1d4" '
-        'font-size="15" font-weight="600">Relative leaf</text>'
+        'font-size="15" font-weight="600">Leaf</text>'
         f'<text x="60" y="{bottom + 69}" text-anchor="middle" fill="#c4f1d4" '
         'font-size="15" font-weight="600">greenness</text>'
         f'<text x="60" y="{bottom + 87}" text-anchor="middle" fill="#eab308" '
