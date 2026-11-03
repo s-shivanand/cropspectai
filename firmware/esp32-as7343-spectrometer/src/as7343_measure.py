@@ -8,8 +8,8 @@ from pathlib import Path
 
 import serial
 
-import channel_config
-from channel_config import CHANNEL_NAMES, WAVELENGTHS, N_CH
+import fimware_config
+from fimware_config import CHANNEL_NAMES, WAVELENGTHS, N_CH
 
 # ============================================================
 # SETTINGS
@@ -18,9 +18,9 @@ from channel_config import CHANNEL_NAMES, WAVELENGTHS, N_CH
 SERIAL_PORT = "/dev/cu.usbserial-0001"
 BAUD_RATE = 115200
 PATH = Path(__file__).resolve().parent.parent / "data"
-CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv"
-# CSV_FILE = channel_config.RAW_DATA_DIR /"basil_experiment.csv"
-REF_FILE = channel_config.REF_DATA_DIR / "REF.csv"
+CSV_FILE = fimware_config.MISC_DATA_DIR / "reflectance.csv"
+# CSV_FILE = fimware_config.RAW_DATA_DIR /"basil_experiment.csv"
+REF_FILE = fimware_config.REF_DATA_DIR / "REF.csv"
 
 # Sensor settings used by the firmware. Keep these in sync with main.cpp,
 # they are saved in every CSV row so you always know how a row was measured.

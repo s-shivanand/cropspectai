@@ -22,7 +22,7 @@ from app.cab_scale import TOOLSRTM_RANGE_URL, cab_scale  # noqa: E402
 from app.tracking import append_tracking_prediction, specimen_tracking_path  # noqa: E402
 from app.tracking_history import render_tracking_history  # noqa: E402
 
-st.set_page_config(page_title="CropSpectAI", page_icon="🍃", layout="centered")
+st.set_page_config(page_title="cropSpectAI", page_icon="🍃", layout="centered")
 
 st.markdown(
     """
@@ -279,7 +279,7 @@ st.markdown(
 )
 
 with st.container(key="app_intro", gap="small"):
-    st.title("🍃 CropSpectAI")
+    st.title("🍃 cropSpectAI")
     st.write("Measure a leaf’s spectrum and estimate its chlorophyll content.")
     st.caption("Connect the ESP32 measuring device and position the leaf before measuring.")
 
@@ -357,7 +357,7 @@ def reading_sensor():
             unsafe_allow_html=True,
         )
         if plot_values is not None:
-            channels = workflow.channel_config
+            channels = workflow.fimware_config
             data = pd.DataFrame({
                 "Wavelength (nm)": channels.WAVELENGTHS,
                 "Reflectance": plot_values,
@@ -466,7 +466,7 @@ if submitted:
                     st.session_state.measurement_result = measure_and_predict(specimen)
                     st.session_state.averaged_spectrum = tuple(
                         st.session_state.measurement_result.measurement[name]
-                        for name in workflow.channel_config.CHANNEL_NAMES
+                        for name in workflow.fimware_config.CHANNEL_NAMES
                     )
                     st.session_state.reveal_result = True
                     prediction = st.session_state.measurement_result

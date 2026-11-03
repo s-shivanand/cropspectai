@@ -5,11 +5,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from cropspectai import config
+from cropspectai import ml_config
 from cropspectai.data_analysis import preprocessing
 
 
-AS7343_CHANNELS = list(config.AS7343_CHANNELS.keys())
+AS7343_CHANNELS = list(ml_config.AS7343_CHANNELS.keys())
 
 EPS = 1e-12
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
     datasplit = "train"
 
     path = (
-        config.PROCESSED_PARQUET_DATA_SPLITS_PATH
+        ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH
         / target
         / f"{datasplit}.parquet"
     )
@@ -280,7 +280,7 @@ if __name__ == "__main__":
         feature_set="established", target=target)
 
     established_path = (
-        config.PROCESSED_PARQUET_DATA_SPLITS_PATH
+        ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH
         / target
         / f"{datasplit}_established_features.parquet"
     )
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     )
 
     all_features_path = (
-        config.PROCESSED_PARQUET_DATA_SPLITS_PATH
+        ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH
         / target
         / f"{datasplit}_all_features.parquet"
     )

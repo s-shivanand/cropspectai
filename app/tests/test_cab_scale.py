@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from streamlit.testing.v1 import AppTest
 
 from app.cab_scale import TOOLSRTM_RANGE_URL, cab_scale
-from cropspectai import config
+from cropspectai import ml_config
 from scripts.measure_predict import MeasurementResult
 
 
@@ -27,7 +27,7 @@ class CabScaleTests(unittest.TestCase):
         self.assertIn('L 24.00 37', cab_scale(-5))
 
     def test_scale_appears_only_with_prediction(self):
-        app = AppTest.from_file(str(config.PROJ_ROOT / 'app/streamlit_app.py')).run()
+        app = AppTest.from_file(str(ml_config.PROJ_ROOT / 'app/streamlit_app.py')).run()
         self.assertFalse(app.get('image'))
         app.session_state.measurement_result = MeasurementResult(
             measurement={'specimen': 'leaf_01', 'timestamp': '2026-10-16T13:00:00'}, cab=42.5,

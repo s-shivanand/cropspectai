@@ -1,7 +1,7 @@
-from cropspectai import config
+from cropspectai import ml_config
 import matplotlib.pyplot as plt
 from cropspectai.data_analysis.preprocessing import split_dataset_into_X_y
-from cropspectai.config import RAW_PARQUET_DATA_SPLITS_PATH
+from cropspectai.ml_config import RAW_PARQUET_DATA_SPLITS_PATH
 import pandas as pd
 import numpy as np
 
@@ -37,7 +37,7 @@ def obtain_wavelengths_from_data(X: pd.DataFrame) -> tuple[np.ndarray, pd.DataFr
     except ValueError:
         # Downsampled AS7343 data: column names are channel names
         wavelengths = np.array([
-            config.AS7343_CHANNELS[channel]["peak"]
+            ml_config.AS7343_CHANNELS[channel]["peak"]
             for channel in X.columns
         ])
 

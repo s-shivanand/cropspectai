@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from channel_config import CHANNEL_NAMES, WAVELENGTHS, BAR_COLORS, N_CH
+from fimware_config import CHANNEL_NAMES, WAVELENGTHS, BAR_COLORS, N_CH
 
 import serial
 import matplotlib.pyplot as plt

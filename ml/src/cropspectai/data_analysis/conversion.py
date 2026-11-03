@@ -1,7 +1,7 @@
 import pandas as pd
 from datasets import load_dataset
 from pathlib import Path
-from cropspectai.config import RAW_DATA_DIR
+from cropspectai.ml_config import RAW_DATA_DIR
 
 
 def convert_hf_csv_to_parquet(dataset_name: str, config_name: str, output_parquet_path: Path, split_name: str | None = None) -> None:

@@ -131,7 +131,7 @@ class LiveSensorTests(unittest.TestCase):
         self.assertTrue(self.connections[0].closed)
 
     def test_reset_stops_stream_and_clears_preview(self):
-        app = AppTest.from_file(str(workflow.config.PROJ_ROOT / "app/streamlit_app.py")).run()
+        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         app.text_input[0].set_value("leaf_to_clear")
         app.button(key="toggle_live").click().run()
         owner = app.session_state.sensor_session
@@ -152,7 +152,7 @@ class LiveSensorTests(unittest.TestCase):
         self.assertEqual(len(self.connections), 2)
 
     def test_reset_clears_result_and_errors_without_changing_saved_data(self):
-        app = AppTest.from_file(str(workflow.config.PROJ_ROOT / "app/streamlit_app.py")).run()
+        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         app.text_input[0].set_value("saved_leaf")
         app.button(key="measure_predict").click().run()
         self.assertFalse(app.exception)
@@ -175,7 +175,7 @@ class LiveSensorTests(unittest.TestCase):
         self.assertFalse(app.metric)
 
     def test_ui_start_chart_stop_and_predict(self):
-        app = AppTest.from_file(str(workflow.config.PROJ_ROOT / "app/streamlit_app.py")).run()
+        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         self.assertFalse(app.exception)
         app.button(key="toggle_live").click().run()
         owner = app.session_state.sensor_session
@@ -199,7 +199,7 @@ class LiveSensorTests(unittest.TestCase):
         self.assertTrue(any("Average of 10 spectral readings" in item.value for item in app.markdown))
         self.assertEqual([item.value for item in app.subheader], ["Predicted Cab"])
         wavelengths = plotted_data["Wavelength (nm)"].astype(int).tolist()
-        self.assertEqual(wavelengths, sorted(workflow.channel_config.WAVELENGTHS))
+        self.assertEqual(wavelengths, sorted(workflow.fimware_config.WAVELENGTHS))
         self.assertEqual(len(self.connections), 2)
         with self.measurements.open(newline="") as handle:
             rows = list(csv.DictReader(handle))
@@ -208,7 +208,7 @@ class LiveSensorTests(unittest.TestCase):
                                               for name in plotted_data["Channel"]])
             self.assertEqual(app.session_state.averaged_spectrum,
                              tuple(float(rows[0][name])
-                                   for name in workflow.channel_config.CHANNEL_NAMES))
+                                   for name in workflow.fimware_config.CHANNEL_NAMES))
         with self.predictions.open(newline="") as handle:
             self.assertEqual(len(list(csv.DictReader(handle))), 1)
         # Restarting the live preview replaces the measured spectrum again.

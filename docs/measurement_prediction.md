@@ -32,12 +32,12 @@ Edit the settings section of `scripts/measure_predict.py` to configure a run:
 
 ```python
 # Model
-MODEL_PATH = config.MODELS_DIR / "xgb_v_01.joblib"
-MODEL_CONFIG_PATH = config.MODELS_DIR / "xgb_best_parameters_v_01.json"
+MODEL_PATH = ml_config.MODELS_DIR / "xgb_v_01.joblib"
+MODEL_CONFIG_PATH = ml_config.MODELS_DIR / "xgb_best_parameters_v_01.json"
 
 # Measurement and prediction data
-CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv"
-PREDICTION_FILE = config.PREDICTION_DATA_DIR / "misc" / "measure_prediction.csv"
+CSV_FILE = fimware_config.MISC_DATA_DIR / "reflectance.csv"
+PREDICTION_FILE = ml_config.PREDICTION_DATA_DIR / "misc" / "measure_prediction.csv"
 ```
 
 Keep the model and its JSON feature configuration paired. `CSV_FILE` controls

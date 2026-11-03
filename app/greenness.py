@@ -4,7 +4,7 @@ import math
 
 import pandas as pd
 
-from cropspectai import config
+from cropspectai import ml_config
 from cropspectai.data_analysis.feature_engineering import add_established_chlorophyll_indices
 
 SPECTRUM_HEIGHT = 280
@@ -14,7 +14,7 @@ GAUGE_TOP = 25  # Change this to move the bar, ticks, pointer, and labels togeth
 
 def spectrum_mndvi(values):
     """Use the same channel mapping and safe division as model feature engineering."""
-    frame = pd.DataFrame([values], columns=list(config.AS7343_CHANNELS))
+    frame = pd.DataFrame([values], columns=list(ml_config.AS7343_CHANNELS))
     value = float(add_established_chlorophyll_indices(frame)["mndvi_as7343"].iloc[0])
     return value if math.isfinite(value) else None
 

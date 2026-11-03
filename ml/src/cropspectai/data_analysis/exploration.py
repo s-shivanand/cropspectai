@@ -1,6 +1,6 @@
 import pandas as pd
 
-from cropspectai.config import RAW_PARQUET_DATA_SPLITS_PATH
+from cropspectai.ml_config import RAW_PARQUET_DATA_SPLITS_PATH
 from cropspectai.data_analysis.preprocessing import split_dataset_into_X_y
 
 

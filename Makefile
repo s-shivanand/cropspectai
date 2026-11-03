@@ -61,7 +61,7 @@ create_environment:
 ## Make dataset
 .PHONY: data
 data: requirements
-	$(PYTHON_INTERPRETER) cropspectai/dataset.py
+	$(PYTHON_INTERPRETER) ml/src/cropspectai/dataset.py
 
 
 #################################################################################

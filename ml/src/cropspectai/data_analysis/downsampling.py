@@ -1,4 +1,4 @@
-from cropspectai import config
+from cropspectai import ml_config
 from cropspectai.data_analysis.preprocessing import split_dataset_into_X_y
 import numpy as np
 import pandas as pd
@@ -24,7 +24,7 @@ def downsample_to_as7343(features: pd.DataFrame, wavelengths, srf_df) -> pd.Data
     spectra = features.to_numpy()
     reflectance = {}
 
-    for channel in config.AS7343_CHANNELS:
+    for channel in ml_config.AS7343_CHANNELS:
 
         reflectance[channel] = downsample_hyperspectra_to_channel(
             spectra,
@@ -38,7 +38,7 @@ def generate_gaussian_srfs(wavelengths):
 
     srfs = {}
 
-    for channel, params in config.AS7343_CHANNELS.items():
+    for channel, params in ml_config.AS7343_CHANNELS.items():
         srfs[channel] = gaussian_srf(
             wavelengths,
             peak=params["peak"],
@@ -53,7 +53,7 @@ def generate_gaussian_srfs(wavelengths):
 
 
 def gaussian_srf(wavelengths: np.ndarray, peak: float, fwhm: float) -> np.ndarray:
-    sigma = fwhm / config.FWHM_std_factor 
+    sigma = fwhm / ml_config.FWHM_std_factor 
     gaussian_density_values = np.exp(-0.5 * ((wavelengths - peak) / sigma) ** 2)
 
     return gaussian_density_values
@@ -67,7 +67,7 @@ def plot_srfs(srf_df: pd.DataFrame) -> None:
             srf_df.index,
             srf_df[channel],
             label=channel,
-            color=config.channel_colors[channel],
+            color=ml_config.channel_colors[channel],
         )
     plt.xlim(left=400, right=1000)
     plt.xlabel("Wavelength (nm)")
@@ -80,7 +80,7 @@ def plot_srfs(srf_df: pd.DataFrame) -> None:
     
 
 if __name__ == "__main__":
-    train_path = config.RAW_PARQUET_DATA_SPLITS_PATH / "train.parquet"
+    train_path = ml_config.RAW_PARQUET_DATA_SPLITS_PATH / "train.parquet"
 
     df_train = pd.read_parquet(train_path)
 
@@ -97,5 +97,5 @@ if __name__ == "__main__":
 
     # #save the downsampled data to a parquet file
     # downsampled_train = pd.concat([reflectance_df, y_train], axis=1)
-    # output_path = config.DOWNSAMPLED_PARQUET_DATA_SPLITS_PATH / "train.parquet"
+    # output_path = ml_config.DOWNSAMPLED_PARQUET_DATA_SPLITS_PATH / "train.parquet"
     # downsampled_train.to_parquet(output_path, engine="pyarrow", index=False)

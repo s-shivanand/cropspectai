@@ -12,12 +12,12 @@ from streamlit.testing.v1 import AppTest
 
 from app.greenness import greenness_gauge, spectrum_mndvi
 from app.live_sensor import LiveReading
-from cropspectai import config
+from cropspectai import ml_config
 
 
 class GreennessTests(unittest.TestCase):
     def spectrum(self, nir=0.7, red=0.3, blue=0.1):
-        channels = dict.fromkeys(config.AS7343_CHANNELS, 0.2)
+        channels = dict.fromkeys(ml_config.AS7343_CHANNELS, 0.2)
         channels.update(NIR=nir, F7=red, FZ=blue)
         return tuple(channels.values())
 
@@ -59,7 +59,7 @@ class GreennessTests(unittest.TestCase):
         reader = SimpleNamespace(snapshot=lambda owner: LiveReading(values=live))
         with patch("app.live_sensor.get_live_sensor", return_value=reader), \
                 patch("streamlit.image", wraps=st.image) as render_gauge:
-            app = AppTest.from_file(str(config.PROJ_ROOT / "app/streamlit_app.py")).run()
+            app = AppTest.from_file(str(ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
             self.assertFalse(app.exception)
             self.assertIn("MNDVI 0.500", render_gauge.call_args.args[0])
             self.assertEqual(len(app.get("vega_lite_chart")), 1)

@@ -1,5 +1,5 @@
-import channel_config
-from channel_config import CHANNEL_NAMES, NON_FEATURE_COLUMNS
+import fimware_config
+from fimware_config import CHANNEL_NAMES, NON_FEATURE_COLUMNS
 import pandas as pd
 
 
@@ -15,12 +15,12 @@ def save_processed_data(X, path):
 
 if __name__ == "__main__":
     # basil data
-    # RAW_FILE = channel_config.RAW_DATA_DIR /"basil_experiment.csv"
-    # output_path = channel_config.PROCESSED_DATA_DIR / "X_new.csv"
+    # RAW_FILE = fimware_config.RAW_DATA_DIR /"basil_experiment.csv"
+    # output_path = fimware_config.PROCESSED_DATA_DIR / "X_new.csv"
 
     #misc data
-    RAW_FILE = channel_config.MISC_DATA_DIR /"reflectance.csv"
-    output_path = channel_config.MISC_DATA_DIR / "X_new.csv"
+    RAW_FILE = fimware_config.MISC_DATA_DIR /"reflectance.csv"
+    output_path = fimware_config.MISC_DATA_DIR / "X_new.csv"
     
     X = split_dataset_into_X(RAW_FILE)
     print(f"Shape after splitting: {X.shape}")

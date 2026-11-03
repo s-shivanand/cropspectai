@@ -9,10 +9,10 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from cropspectai import config
+from cropspectai import ml_config
 
-INPUT_DIR = config.BASIL_EXPERIMENT_DATA_PATH / "tracked_specimens"
-OUTPUT_DIR = config.FIGURES_DIR / "specimen_progression"
+INPUT_DIR = ml_config.BASIL_EXPERIMENT_DATA_PATH / "tracked_specimens"
+OUTPUT_DIR = ml_config.FIGURES_DIR / "specimen_progression"
 METRICS = {"cab": "CAB", "mndvi_as7343": "MNDVI"}
 
 

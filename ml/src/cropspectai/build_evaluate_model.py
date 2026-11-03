@@ -10,16 +10,16 @@ import joblib
 import pandas as pd
 from xgboost import XGBRegressor
 
-from cropspectai import config
+from cropspectai import ml_config
 from cropspectai.data_analysis import preprocessing
 from cropspectai.modeling.evaluate import evaluate_model
 from cropspectai.modeling.train import build_pipeline, tune_xgboost
 
 # Settings
 TARGET = "cab"
-TRAIN_PATH = config.PROCESSED_PARQUET_DATA_SPLITS_PATH / TARGET / "train_all_features.parquet"
+TRAIN_PATH = ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH / TARGET / "train_all_features.parquet"
 TEST_PATH = (
-    config.PROCESSED_PARQUET_DATA_SPLITS_PATH / TARGET / "test" / "test_all_features.parquet"
+    ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH / TARGET / "test" / "test_all_features.parquet"
 )
 
 # Channels to exclude; for example: ["F2", "FZ"]. Leave empty to use all channels.
@@ -36,7 +36,7 @@ EXTRA_FEATURES = [
                 #   'mcari_osavi_as7343'
                   ]
 
-FEATURES = [channel for channel in config.AS7343_CHANNELS if channel not in DROP_CHANNELS]
+FEATURES = [channel for channel in ml_config.AS7343_CHANNELS if channel not in DROP_CHANNELS]
 FEATURES += EXTRA_FEATURES
 
 N_TRIALS = 50
@@ -46,8 +46,8 @@ RANDOM_STATE = 42
 
 # Change the version before running to keep previous models.
 MODEL_VERSION = "v_05"
-MODEL_PATH = config.MODELS_DIR / f"xgb_{MODEL_VERSION}.joblib"
-RESULTS_PATH = config.MODELS_DIR / f"xgb_best_parameters_{MODEL_VERSION}.json"
+MODEL_PATH = ml_config.MODELS_DIR / f"xgb_{MODEL_VERSION}.joblib"
+RESULTS_PATH = ml_config.MODELS_DIR / f"xgb_best_parameters_{MODEL_VERSION}.json"
 
 
 def evaluate_test_data(model_path):
