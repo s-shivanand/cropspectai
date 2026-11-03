@@ -30,12 +30,12 @@ MODEL_VERSION = "v_01"
 MODEL_PATH = ml_config.MODELS_DIR / f"xgb_{MODEL_VERSION}.joblib"
 MODEL_CONFIG_PATH = ml_config.MODELS_DIR / f"xgb_best_parameters_{MODEL_VERSION}.json"
 
-#trail data
+#trial data
 CSV_FILE = fimware_config.MISC_DATA_DIR / "reflectance.csv" # input
 PREDICTION_FILE = ml_config.PREDICTION_DATA_DIR / "misc" / f"measure_prediction_{MODEL_VERSION}.csv" # output
 
 #basil experiment data
-# CSV_FILE = fimware_config.RAW_DATA_DIR / "basil_experiment.csv" # input
+# CSV_FILE = fimware_config.EXPERIMENT_DATA_DIR / "basil_experiment.csv" # input
 # PREDICTION_FILE = ml_config.BASIL_EXPERIMENT_DATA_PATH / f"measure_prediction_{MODEL_VERSION}.csv" # output
 
 

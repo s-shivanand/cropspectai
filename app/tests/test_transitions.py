@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import streamlit as st
-from streamlit.testing.v1 import AppTest
+from app.tests.helpers import device_app
 
 from app.live_sensor import LiveReading
 from cropspectai import ml_config
@@ -28,7 +28,7 @@ class TransitionTests(unittest.TestCase):
         )
         with patch("app.live_sensor.get_live_sensor", return_value=reader), \
                 patch("streamlit.altair_chart", wraps=st.altair_chart) as render_plot:
-            app = AppTest.from_file(str(ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
+            app = device_app(str(ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
             self.assertFalse(app.get("vega_lite_chart"))
             app.button(key="toggle_live").click().run()
             self.assertFalse(app.exception)
@@ -58,6 +58,10 @@ class TransitionTests(unittest.TestCase):
             self.assertFalse(app.exception)
             self.assertFalse(app.get("vega_lite_chart"))
             self.assertNotIn("last_displayed_spectrum", app.session_state)
+            self.assertNotIn("device_available", app.session_state)
+            self.assertEqual([button.label for button in app.button], ["Yes", "No"])
+            self.assertEqual(app.button(key="device_yes").proto.type, "secondary")
+            self.assertEqual(app.button(key="device_no").proto.type, "secondary")
 
 
 if __name__ == "__main__":

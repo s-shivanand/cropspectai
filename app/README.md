@@ -6,6 +6,21 @@ From the repository root, run:
 uv run streamlit run app/streamlit_app.py
 ```
 
+Answer **Do you have ESP32 measuring device?** with **Yes** to open the device
+workflow. To explore predictions without an ESP32, choose **No**, then click
+**Use sample data** under
+**Don't have measuring device?** The app shows three saved spectra. Select
+the specimen dropdown to preview its leaf photo and spectrum, then
+click **Predict Cab**. Sample predictions use the same feature engineering and
+model as device measurements, but do not save measurement, prediction, or tracking
+files. Choose **Yes** to return to the device workflow.
+
+The examples are stored in `firmware/esp32-as7343-spectrometer/data/measurement/samples/sample_measurements.csv`,
+with specimen photos alongside it as `<specimen>.jpg`. The CSV contains timestamp,
+specimen, and the twelve channel columns. The measurements come from file rows 109 and 110 of
+the firmware's `data/measurement/misc/reflectance.csv`, and row 113 of
+`data/measurement/experiment/basil_experiment.csv`, counting the header as row 1.
+
 Open the local URL printed by Streamlit. Connect the ESP32, position the leaf,
 and press **Start reading** under **Reading sensor** to see live reflectance bars
 for the twelve spectral channels. The chart uses the saved dark and white
@@ -37,8 +52,8 @@ After Reset or an app restart, an existing specimen file prompts **Continue to
 track** or **Don't track**. Until you continue, predictions are saved only in the
 central CSV. Continuing also adds the currently displayed prediction to the
 specimen file. Other specimen labels are not tracked until explicitly enabled.
-Reset clears the screen and session choices without removing saved tracking
-files. Labels containing filename separators are safely
+Reset returns to the initial Yes/No device question with neither option selected,
+without removing saved tracking files. Labels containing filename separators are safely
 encoded in the filename while retaining the original label inside the CSV.
 
 The terminal workflow remains available:

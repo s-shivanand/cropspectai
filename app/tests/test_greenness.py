@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import streamlit as st
-from streamlit.testing.v1 import AppTest
+from app.tests.helpers import device_app
 
 from app.greenness import greenness_gauge, spectrum_mndvi
 from app.live_sensor import LiveReading
@@ -59,7 +59,7 @@ class GreennessTests(unittest.TestCase):
         reader = SimpleNamespace(snapshot=lambda owner: LiveReading(values=live))
         with patch("app.live_sensor.get_live_sensor", return_value=reader), \
                 patch("streamlit.image", wraps=st.image) as render_gauge:
-            app = AppTest.from_file(str(ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
+            app = device_app(str(ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
             self.assertFalse(app.exception)
             self.assertIn("MNDVI 0.500", render_gauge.call_args.args[0])
             self.assertEqual(len(app.get("vega_lite_chart")), 1)

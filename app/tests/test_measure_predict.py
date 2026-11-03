@@ -12,7 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from streamlit.testing.v1 import AppTest
+from app.tests.helpers import device_app
 
 from app.tracking import specimen_tracking_path
 from scripts import measure_predict as workflow
@@ -166,7 +166,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertTrue(self.connections[0].closed)
 
     def test_button_to_real_prediction_and_rerun(self):
-        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py"))
+        app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py"))
         app.run()
         self.assertFalse(app.exception)
         self.assertFalse(self.connections)
@@ -186,11 +186,12 @@ class MeasurementTests(unittest.TestCase):
         reveals = [frame for frame in app.get("iframe")
                    if "scrollIntoView" in frame.proto.srcdoc]
         self.assertEqual(len(reveals), 1)
-        self.assertIn("card.animate", reveals[0].proto.srcdoc)
+        self.assertIn("setTimeout", reveals[0].proto.srcdoc)
         self.assertIn("prefers-reduced-motion", reveals[0].proto.srcdoc)
         self.assertNotIn("reveal_result", app.session_state)
         app.run()
-        self.assertFalse(app.get("iframe"))
+        self.assertFalse([frame for frame in app.get("iframe")
+                          if "scrollIntoView" in frame.proto.srcdoc])
         self.assertEqual(len(app.metric), 1)
         self.assertEqual(len(self.connections), 1)
         # A new failed attempt must not display the preceding successful prediction.
@@ -202,7 +203,7 @@ class MeasurementTests(unittest.TestCase):
 
     def test_track_current_prediction_and_future_measurements_of_only_that_specimen(self):
         app_path = str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")
-        app = AppTest.from_file(app_path).run()
+        app = device_app(app_path).run()
         app.text_input[0].set_value("leaf_01")
         app.button(key="measure_predict").click().run()
         tracking_file = specimen_tracking_path("leaf_01", self.predictions)
@@ -228,7 +229,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertFalse(specimen_tracking_path("other_leaf", self.predictions).exists())
         self.assertFalse(app.button(key="track_specimen").disabled)
         # A fresh app session asks before adding its current prediction to the specimen CSV.
-        fresh_app = AppTest.from_file(app_path).run()
+        fresh_app = device_app(app_path).run()
         fresh_app.text_input[0].set_value("leaf_01")
         fresh_app.button(key="measure_predict").click().run()
         self.assertFalse(fresh_app.exception)
@@ -243,6 +244,7 @@ class MeasurementTests(unittest.TestCase):
         before_reset = tracking_file.read_bytes()
         fresh_app.button(key="reset_app").click().run()
         self.assertEqual(tracking_file.read_bytes(), before_reset)
+        fresh_app.button(key="device_yes").click().run()
         fresh_app.text_input[0].set_value("leaf_01")
         fresh_app.button(key="measure_predict").click().run()
         self.assertTrue(any("Continue to track?" in item.value for item in fresh_app.caption))
@@ -258,7 +260,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertIn("track_specimen", [button.key for button in fresh_app.button])
 
     def test_stop_tracking_keeps_saved_rows_and_can_resume_without_duplicates(self):
-        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
+        app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         app.text_input[0].set_value("leaf_01")
         app.button(key="measure_predict").click().run()
         self.assertEqual(len(app.get("vega_lite_chart")), 1)
@@ -294,7 +296,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertIn("stop_tracking", [button.key for button in app.button])
 
     def test_track_write_error_preserves_prediction_and_can_be_retried(self):
-        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
+        app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         app.text_input[0].set_value("leaf_01")
         app.button(key="measure_predict").click().run()
         original = self.predictions.read_bytes()
@@ -312,7 +314,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(tracking_file.read_bytes(), original)
 
     def test_app_validation_and_prediction_error(self):
-        app = AppTest.from_file(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py"))
+        app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py"))
         app.run()
         app.button(key="measure_predict").click().run()
         self.assertIn("specimen label", app.warning[0].value)

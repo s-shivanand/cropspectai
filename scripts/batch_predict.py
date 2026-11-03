@@ -26,7 +26,7 @@ CSV_FILE = fimware_config.MISC_DATA_DIR / "reflectance.csv" # input
 PREDICTION_FILE = ml_config.PREDICTION_DATA_DIR / "misc" / f"batch_prediction_{MODEL_VERSION}.csv" # output
 
 # #basil experiment data
-# CSV_FILE = fimware_config.RAW_DATA_DIR / "basil_experiment.csv" # input
+# CSV_FILE = fimware_config.EXPERIMENT_DATA_DIR / "basil_experiment.csv" # input
 # PREDICTION_FILE = ml_config.BASIL_EXPERIMENT_DATA_PATH / f"batch_prediction_{MODEL_VERSION}.csv" # output
 
 CHANNELS = list(ml_config.AS7343_CHANNELS)

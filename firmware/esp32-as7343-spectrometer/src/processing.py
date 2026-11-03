@@ -15,7 +15,7 @@ def save_processed_data(X, path):
 
 if __name__ == "__main__":
     # basil data
-    # RAW_FILE = fimware_config.RAW_DATA_DIR /"basil_experiment.csv"
+    # RAW_FILE = fimware_config.EXPERIMENT_DATA_DIR /"basil_experiment.csv"
     # output_path = fimware_config.PROCESSED_DATA_DIR / "X_new.csv"
 
     #misc data

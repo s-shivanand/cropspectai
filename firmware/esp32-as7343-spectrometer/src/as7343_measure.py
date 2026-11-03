@@ -19,7 +19,7 @@ SERIAL_PORT = "/dev/cu.usbserial-0001"
 BAUD_RATE = 115200
 PATH = Path(__file__).resolve().parent.parent / "data"
 CSV_FILE = fimware_config.MISC_DATA_DIR / "reflectance.csv"
-# CSV_FILE = fimware_config.RAW_DATA_DIR /"basil_experiment.csv"
+# CSV_FILE = fimware_config.EXPERIMENT_DATA_DIR /"basil_experiment.csv"
 REF_FILE = fimware_config.REF_DATA_DIR / "REF.csv"
 
 # Sensor settings used by the firmware. Keep these in sync with main.cpp,
