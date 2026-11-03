@@ -11,7 +11,7 @@ uv run python scripts/measure_predict.py
 Enter a specimen label to measure, press Enter to reuse it, or enter `q` to quit.
 Each successful measurement prints its predicted `cab` in µg/cm² and appends to:
 
-- `firmware/esp32-as7343-spectrometer/data/misc/reflectance.csv`
+- `firmware/esp32-as7343-spectrometer/data/measurement/misc/reflectance.csv`
 - `data/prediction/misc/measure_prediction.csv`
 
 The prediction CSV contains `timestamp`, `specimen`, the twelve channel values
@@ -55,7 +55,7 @@ four paths in `scripts/batch_predict.py` and run:
 uv run python scripts/batch_predict.py
 ```
 
-By default, this reads the firmware's `data/misc/reflectance.csv` and writes
+By default, this reads the firmware's `data/measurement/misc/reflectance.csv` and writes
 `data/prediction/misc/batch_prediction.csv`, with the same output columns as the
 interactive script. Each run replaces the batch output with predictions for all
 input rows in their original order. The input CSV is left unchanged.

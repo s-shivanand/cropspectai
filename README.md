@@ -13,7 +13,7 @@ uv run python scripts/measure_predict.py
 ```
 
 Enter a specimen label to measure, press Enter to reuse the label, or enter `q`
-to quit. Measurements are saved in the firmware data directory, and measurements
+to quit. Measurements are saved under the firmware’s `data/measurement/` directory, and measurements
 with predicted `cab` values are appended to `data/prediction/misc/measure_prediction.csv`.
 
 To predict an existing measurement CSV without the sensor, configure the paths

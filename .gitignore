@@ -1,5 +1,14 @@
 # Data
-/data/raw
+/data/raw/
+/data/downsampled/
+/data/processed/
+/data/prediction/basil_experiment/
+
+# Models: retain only the deployed model and its configuration
+/models/*.joblib
+/models/*.json
+!/models/xgb_v_01.joblib
+!/models/xgb_best_parameters_v_01.json
 
 # Mac OS-specific storage files
 .DS_Store
