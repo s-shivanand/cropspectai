@@ -1,7 +1,7 @@
 # App guide
 
 **[Open cropSpectAI →](https://cropspectai.streamlit.app/)** ·
-[Demo video](../firmware/esp32-as7343-spectrometer/data/device/full_demo.mp4?raw=true) ·
+[Demo video](https://youtu.be/MrCatPmRXBs) ·
 [Local setup](../README.md#run-locally) · [Project overview](../README.md)
 
 [Samples](#explore-without-hardware) · [Connect](#connect-a-measuring-device) ·

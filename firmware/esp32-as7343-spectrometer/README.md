@@ -6,7 +6,7 @@ and sends raw channel counts over USB serial. Calibration and Cab prediction run
 in the Python backend, rather than on the ESP32.
 
 [Device photo](data/device/device_setup.jpeg) ·
-[Watch or download the demo](data/device/full_demo.mp4?raw=true) ·
+[Watch the demo on YouTube](https://youtu.be/MrCatPmRXBs) ·
 [App and calibration guide](../../app/README.md)
 
 ## Build and upload
