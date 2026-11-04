@@ -8,7 +8,7 @@ a specimen over time—or try three sample leaves without any hardware.
 
 **[Open the live app →](https://cropspectai.streamlit.app/)**
 
-[Demo video](firmware/esp32-as7343-spectrometer/data/device/full_demo.mov?raw=true) ·
+[Demo video](firmware/esp32-as7343-spectrometer/data/device/full_demo.mp4?raw=true) ·
 [App guide](app/README.md) ·
 [Feature equations](docs/feature_engineering.md) ·
 [Run locally](#run-locally)
