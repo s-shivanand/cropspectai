@@ -164,3 +164,15 @@ Choose a new model version to preserve the published model.
 | Understand the 12 channels and 7 engineered features | [Feature equations](docs/feature_engineering.md) |
 | Measure from Python or configure output files | [Measurement guide](docs/measurement_prediction.md) |
 | Build firmware or check sensor settings | [Firmware guide](firmware/esp32-as7343-spectrometer/README.md) |
+
+## License
+
+This project uses the custom [CropSpectAI Noncommercial License](LICENSE).
+You may use, modify, and share it for **noncommercial purposes**, including
+research, teaching, and education, while preserving the license and copyright
+notice. **Commercial use requires separate written permission** from the
+copyright holder; research or educational labeling alone does not exempt a
+commercial use.
+
+Third-party software, datasets, and images retain their own terms. In particular,
+the credited chlorophyll image is not covered by this project’s license.
