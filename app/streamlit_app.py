@@ -4,10 +4,11 @@ Run from the repository root with:
     uv run streamlit run app/streamlit_app.py
 
 Streamlit reruns this module after widget interactions. Callbacks update
-session state, while the cached live reader handles background acquisition.
+session state, while the local reader or browser bridge handles acquisition.
 """
 
 import sys
+import time
 from html import escape
 from pathlib import Path
 from uuid import uuid4
@@ -21,6 +22,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from app.browser_sensor import (  # noqa: E402
+    browser_reading,
+    browser_sensor,
+    save_browser_measurement,
+)
 from app.cab_scale import TOOLSRTM_RANGE_URL, cab_scale  # noqa: E402
 from app.greenness import (  # noqa: E402
     GAUGE_WIDTH,
@@ -443,10 +449,80 @@ def reset_app() -> None:
         "sample_mode",
         "sample_specimen",
         "device_available",
+        "browser_request_id",
+        "browser_saved_id",
     ):
         st.session_state.pop(key, None)
     # A fresh owner hides any last frame or error retained by the stopped reader.
     st.session_state.sensor_session = uuid4().hex
+
+
+def retain_prediction(prediction: workflow.MeasurementResult, sample_mode: bool) -> None:
+    """Display a completed prediction and apply the existing tracking choice.
+
+    Args:
+        prediction: Result returned by local, browser, or sample acquisition.
+        sample_mode: Whether to skip all specimen tracking writes.
+    """
+    st.session_state.measurement_result = prediction
+    st.session_state.averaged_spectrum = tuple(
+        prediction.measurement[name] for name in workflow.fimware_config.CHANNEL_NAMES
+    )
+    st.session_state.reveal_result = True
+    if prediction.cab is not None and not sample_mode:
+        tracking_file = specimen_tracking_path(
+            prediction.measurement["specimen"], workflow.PREDICTION_FILE
+        )
+        if tracking_choices.get(prediction.measurement["specimen"]) is True:
+            try:
+                append_tracking_prediction(prediction.prediction_row, tracking_file)
+                st.session_state.current_tracking_path = str(tracking_file)
+            except Exception as exc:
+                st.session_state.tracking_error = (
+                    f"Prediction saved, but specimen tracking failed: {exc}"
+                )
+
+
+def receive_browser_measurement(packet: dict) -> None:
+    """Consume browser requests once, preserving the existing result workflow.
+
+    Args:
+        packet: Browser state containing a request ID, label, and optional batch.
+
+    Note:
+        A request is marked consumed before writing so a rerun cannot duplicate
+        its measurement, prediction, or tracking rows, including after failures.
+    """
+    request = packet.get("request")
+    if not isinstance(request, dict) or not isinstance(request.get("id"), str):
+        return
+    request_id = request["id"]
+    if st.session_state.get("browser_request_id") != request_id:
+        st.session_state.browser_request_id = request_id
+        st.session_state.specimen_label = str(request.get("specimen", ""))
+        for key in (
+            "measurement_result",
+            "reveal_result",
+            "measurement_error",
+            "averaged_spectrum",
+            "current_tracking_path",
+            "tracking_error",
+        ):
+            st.session_state.pop(key, None)
+    if st.session_state.get("browser_saved_id") == request_id:
+        return
+    if packet.get("error"):
+        st.session_state.browser_saved_id = request_id
+        st.session_state.measurement_error = packet["error"]
+        st.rerun()
+    elif packet.get("raw") is not None:
+        st.session_state.browser_saved_id = request_id
+        try:
+            retain_prediction(save_browser_measurement(packet["raw"], request["specimen"]), False)
+        except Exception as exc:
+            st.session_state.measurement_error = str(exc)
+        # Acknowledge completion to the bridge before accepting another acquisition.
+        st.rerun()
 
 
 def choose_device(available: bool) -> None:
@@ -542,7 +618,19 @@ with workflow_panel:
                 "Connect the ESP32 measuring device and position the leaf before measuring."
             )
 
-        @st.fragment(run_every=0.5 if st.session_state.get("live_requested") else None)
+        browser_packet = browser_sensor(sensor_session) if device_available else {}
+        browser_active = bool(browser_packet.get("supported"))
+        if browser_active:
+            st.session_state.live_requested = bool(browser_packet.get("live"))
+            if browser_packet.get("live"):
+                st.session_state.pop("averaged_spectrum", None)
+            receive_browser_measurement(browser_packet)
+
+        @st.fragment(
+            run_every=0.5
+            if st.session_state.get("live_requested") and not browser_active
+            else None
+        )
         def reading_sensor() -> None:
             """Render live or selected-sample spectra and their status messages.
 
@@ -552,7 +640,11 @@ with workflow_panel:
                 and displays the spectrum and MNDVI gauge without saving measurements.
             """
             requested = st.session_state.get("live_requested", False)
-            reading = live_sensor.snapshot(sensor_session)
+            reading = (
+                browser_reading(browser_packet)
+                if browser_active
+                else live_sensor.snapshot(sensor_session)
+            )
             averaged_spectrum = st.session_state.get("averaged_spectrum")
             show_average = averaged_spectrum is not None and not reading.running
             result = st.session_state.get("measurement_result")
@@ -564,6 +656,9 @@ with workflow_panel:
                         "Stop" if requested else "Start", key="toggle_live", type="secondary"
                     ):
                         try:
+                            if browser_active:
+                                # Chrome handles real clicks before Streamlit's widget handler.
+                                st.rerun()
                             if requested:
                                 live_sensor.stop(sensor_session)
                             else:
@@ -767,6 +862,32 @@ with workflow_panel:
         # the previous result's container for the spinner during a measurement.
         measurement_status = st.empty()
 
+        if (
+            browser_active
+            and browser_packet.get("busy")
+            and browser_packet.get("request")
+            and st.session_state.get("browser_saved_id") != browser_packet["request"]["id"]
+        ):
+            count = workflow.as7343_measure.SENSOR_SETTINGS["n_avg"]
+            with measurement_status.container(
+                key="measurement_status", horizontal=True, horizontal_alignment="center"
+            ):
+                with st.spinner(
+                    f"Taking {count} readings and calculating their average. Keep the specimen in place…",
+                    width="content",
+                ):
+                    # Frontend state updates interrupt this wait with a rerun. Reading
+                    # session state yields to Streamlit so Reset also remains responsive.
+                    deadline = time.monotonic() + 45
+                    while time.monotonic() < deadline:
+                        st.session_state.get("browser_saved_id")
+                        time.sleep(0.1)
+            st.session_state.browser_saved_id = browser_packet["request"]["id"]
+            st.session_state.measurement_error = (
+                "Measurement timed out. Check the device and try again."
+            )
+            st.rerun()
+
         if submitted:
             if sample_mode and not st.session_state.get("sample_specimen"):
                 st.warning("Please choose a sample specimen before predicting.")
@@ -803,33 +924,14 @@ with workflow_panel:
                                     .iloc[0]
                                     .to_dict()
                                 )
-                                st.session_state.measurement_result = predict_sample(
-                                    sample, specimen
-                                )
+                                prediction = predict_sample(sample, specimen)
                             else:
-                                st.session_state.measurement_result = measure_and_predict(specimen)
-                            st.session_state.averaged_spectrum = tuple(
-                                st.session_state.measurement_result.measurement[name]
-                                for name in workflow.fimware_config.CHANNEL_NAMES
-                            )
-                            st.session_state.reveal_result = True
-                            prediction = st.session_state.measurement_result
-                            if prediction.cab is not None and not sample_mode:
-                                tracking_file = specimen_tracking_path(
-                                    prediction.measurement["specimen"],
-                                    workflow.PREDICTION_FILE,
-                                )
-                                if (
-                                    tracking_choices.get(prediction.measurement["specimen"])
-                                    is True
-                                ):
-                                    try:
-                                        append_tracking_prediction(
-                                            prediction.prediction_row, tracking_file
-                                        )
-                                        st.session_state.current_tracking_path = str(tracking_file)
-                                    except Exception as exc:
-                                        st.session_state.tracking_error = f"Prediction saved, but specimen tracking failed: {exc}"
+                                if browser_active:
+                                    raise RuntimeError(
+                                        "Please click Measure and predict to connect the browser device."
+                                    )
+                                prediction = measure_and_predict(specimen)
+                            retain_prediction(prediction, sample_mode)
                 except Exception as exc:
                     st.session_state.measurement_error = str(exc)
                 st.rerun()
