@@ -1,5 +1,7 @@
 """Display saved Cab and MNDVI progression for the actively tracked specimen."""
 
+from pathlib import Path
+
 import altair as alt
 import pandas as pd
 import streamlit as st
@@ -7,8 +9,25 @@ import streamlit as st
 from app.tracking import read_tracking_predictions
 
 
-def load_tracking_history(path, specimen):
-    """Keep recorded values intact; exclude unusable data only from the display."""
+def load_tracking_history(path: str | Path, specimen: str) -> pd.DataFrame:
+    """Load and sort recorded values for one specimen's display history.
+
+    Args:
+        path: Tracking CSV to read.
+        specimen: Label that must match every row in the file.
+
+    Returns:
+        DataFrame sorted stably by timestamp. Invalid timestamps are excluded;
+        unavailable or nonfinite Cab/MNDVI values become NaN. Finite values are
+        not clipped. Empty files return timestamp, cab, and mndvi_as7343 columns.
+
+    Raises:
+        OSError: The tracking file cannot be read.
+        ValueError: Required columns are missing or specimen labels do not match.
+
+    Note:
+        Cleaning affects only the returned display data; the CSV is unchanged.
+    """
     rows = read_tracking_predictions(path)
     if not rows:
         return pd.DataFrame(columns=["timestamp", "cab", "mndvi_as7343"])
@@ -24,7 +43,17 @@ def load_tracking_history(path, specimen):
     return data.dropna(subset=["timestamp"]).sort_values("timestamp", kind="stable")
 
 
-def render_tracking_history(path, specimen):
+def render_tracking_history(path: str | Path, specimen: str) -> None:
+    """Render saved Cab and MNDVI charts for a tracked specimen.
+
+    Args:
+        path: Specimen tracking CSV to display.
+        specimen: Expected specimen label for the saved rows.
+
+    Note:
+        Displays a warning for read or validation errors, and captions for
+        empty or unavailable observations. Does not modify tracking files.
+    """
     with st.container(key="tracking_history", gap="small"):
         st.subheader("Specimen progression", anchor=False, text_alignment="center")
         st.caption(f"Specimen: {specimen} · Saved tracking history")
@@ -37,7 +66,9 @@ def render_tracking_history(path, specimen):
             st.caption("No dated tracking measurements are available yet.")
             return
         if len(data) == 1:
-            st.caption("First tracked measurement saved. Further measurements will build the progression.")
+            st.caption(
+                "First tracked measurement saved. Further measurements will build the progression."
+            )
         for column, title, axis_title, color in (
             ("cab", "Cab progression", "Predicted Cab (µg/cm²)", "#86efac"),
             ("mndvi_as7343", "MNDVI progression", "MNDVI", "#7dd3fc"),
@@ -46,25 +77,54 @@ def render_tracking_history(path, specimen):
             values = data.dropna(subset=[column])
             if values.empty:
                 st.caption(f"No valid {axis_title} values are available in the tracking history.")
-            chart = alt.Chart(values).mark_line(
-                color=color, strokeWidth=1.5,
-                point=alt.OverlayMarkDef(size=65, filled=True, color=color),
-            ).encode(
-                x=alt.X("timestamp:T", title="Measurement time",
-                        axis=alt.Axis(labelAngle=-20, labelOverlap=True, tickCount=4)),
-                y=alt.Y(f"{column}:Q", title=axis_title, scale=alt.Scale(zero=False),
-                        axis=alt.Axis(format=".1f") if column == "cab" else alt.Axis()),
-                order=alt.Order("timestamp:T"),
-                tooltip=[alt.Tooltip("timestamp:T", title="Measured at", format="%d %b %Y, %H:%M:%S"),
-                         alt.Tooltip(f"{column}:Q", title=axis_title,
-                                     format=".1f" if column == "cab" else ".4f")],
-            ).properties(
-                height=220, background="transparent",
-                padding={"top": 12, "right": 12, "bottom": 8, "left": 8},
-            ).configure_axis(
-                labelColor="#d4e4d9", titleColor="#e5efe8",
-                labelFont="Avenir Next", titleFont="Avenir Next",
-                labelFontSize=13, titleFontSize=14, titlePadding=12,
-                gridColor="#688473", gridOpacity=0.2, domain=False,
-            ).configure_view(strokeOpacity=0)
+            chart = (
+                alt.Chart(values)
+                .mark_line(
+                    color=color,
+                    strokeWidth=1.5,
+                    point=alt.OverlayMarkDef(size=65, filled=True, color=color),
+                )
+                .encode(
+                    x=alt.X(
+                        "timestamp:T",
+                        title="Measurement time",
+                        axis=alt.Axis(labelAngle=-20, labelOverlap=True, tickCount=4),
+                    ),
+                    y=alt.Y(
+                        f"{column}:Q",
+                        title=axis_title,
+                        scale=alt.Scale(zero=False),
+                        axis=alt.Axis(format=".1f") if column == "cab" else alt.Axis(),
+                    ),
+                    order=alt.Order("timestamp:T"),
+                    tooltip=[
+                        alt.Tooltip(
+                            "timestamp:T", title="Measured at", format="%d %b %Y, %H:%M:%S"
+                        ),
+                        alt.Tooltip(
+                            f"{column}:Q",
+                            title=axis_title,
+                            format=".1f" if column == "cab" else ".4f",
+                        ),
+                    ],
+                )
+                .properties(
+                    height=220,
+                    background="transparent",
+                    padding={"top": 12, "right": 12, "bottom": 8, "left": 8},
+                )
+                .configure_axis(
+                    labelColor="#d4e4d9",
+                    titleColor="#e5efe8",
+                    labelFont="Avenir Next",
+                    titleFont="Avenir Next",
+                    labelFontSize=13,
+                    titleFontSize=14,
+                    titlePadding=12,
+                    gridColor="#688473",
+                    gridOpacity=0.2,
+                    domain=False,
+                )
+                .configure_view(strokeOpacity=0)
+            )
             st.altair_chart(chart, width="stretch", theme=None, key=f"history_{column}")

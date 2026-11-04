@@ -1,14 +1,28 @@
-from cropspectai import ml_config
+"""Plot spectral samples, reflectance summaries, and target distributions."""
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from cropspectai import ml_config
 from cropspectai.data_analysis.preprocessing import split_dataset_into_X_y
 from cropspectai.ml_config import RAW_PARQUET_DATA_SPLITS_PATH
-import pandas as pd
-import numpy as np
 
 
-def plot_spectra(X, n_samples=500):
+def plot_spectra(X: pd.DataFrame, n_samples: int = 500) -> None:
+    """Plot a reproducible random sample of reflectance spectra.
 
-    wavelengths, X = obtain_wavelengths_from_data(X)   
+    Args:
+        X: Spectral DataFrame with numeric wavelength labels or AS7343 channel
+            names as columns, and samples as rows.
+        n_samples: Maximum number of spectra to plot. Sampling uses seed 42.
+
+    Note:
+        Creates a Matplotlib figure with bands sorted by wavelength. Call
+        ``plt.show()`` to display it outside an interactive notebook. No figure
+        is returned or saved.
+    """
+    wavelengths, X = obtain_wavelengths_from_data(X)
 
     sample = X.sample(
         n=min(n_samples, len(X)),
@@ -29,27 +43,51 @@ def plot_spectra(X, n_samples=500):
     plt.title(f"Random sample of {len(sample)} spectra")
     # plt.show()
 
+
 def obtain_wavelengths_from_data(X: pd.DataFrame) -> tuple[np.ndarray, pd.DataFrame]:
+    """Resolve column wavelengths and sort spectral features accordingly.
+
+    Args:
+        X: Spectral DataFrame whose columns are numeric wavelength labels in
+            nanometers or configured AS7343 channel names.
+
+    Returns:
+        Pair containing a one-dimensional sorted wavelength array and a copy
+        of ``X`` with columns reordered to match. The row index is retained.
+
+    Raises:
+        KeyError: A nonnumeric column name is not a configured AS7343 channel.
+    """
     try:
         # Hyperspectral data: column names are wavelengths
         wavelengths = X.columns.astype(float).to_numpy()
 
     except ValueError:
         # Downsampled AS7343 data: column names are channel names
-        wavelengths = np.array([
-            ml_config.AS7343_CHANNELS[channel]["peak"]
-            for channel in X.columns
-        ])
+        wavelengths = np.array(
+            [ml_config.AS7343_CHANNELS[channel]["peak"] for channel in X.columns]
+        )
 
     # Sort by wavelength and corresponding data
     order = np.argsort(wavelengths)
     wavelengths = wavelengths[order]
-    X = X.iloc[:, order].copy()    
+    X = X.iloc[:, order].copy()
 
     return wavelengths, X
 
 
-def plot_spectral_distribution(X):
+def plot_spectral_distribution(X: pd.DataFrame) -> None:
+    """Plot wavelength-wise reflectance averages and percentile bands.
+
+    Args:
+        X: Spectral DataFrame with samples as rows and numeric wavelength labels
+            or configured AS7343 channel names as columns.
+
+    Note:
+        Creates a Matplotlib figure with mean, median, 5-95%, and 25-75%
+        summaries. Call ``plt.show()`` to display it outside a notebook. No
+        figure is returned or saved.
+    """
     wavelengths, X = obtain_wavelengths_from_data(X)
 
     median = X.median()
@@ -87,31 +125,37 @@ def plot_spectral_distribution(X):
     )
 
     plt.plot(
-            wavelengths,
-            mean,
-            # linewidth=2,
-            color="red",
-            linestyle="-",
-            label="Mean",
-        )
+        wavelengths,
+        mean,
+        # linewidth=2,
+        color="red",
+        linestyle="-",
+        label="Mean",
+    )
 
     plt.xlabel("Wavelength (nm)")
     plt.ylabel("Reflectance")
     plt.title("Spectral distribution")
     plt.legend()
-    # plt.show()   
+    # plt.show()
 
 
-def plot_target_distributions(y):
+def plot_target_distributions(y: pd.DataFrame) -> None:
+    """Plot histograms with mean and median markers for target columns.
 
+    Args:
+        y: DataFrame whose numeric columns are target variables and whose rows
+            are samples.
+
+    Note:
+        Creates a Matplotlib figure using 30 bins per histogram. Call
+        ``plt.show()`` to display it outside a notebook. No axes or figure are
+        returned, and the input is unchanged.
+    """
     median = y.median()
     mean = y.mean()
 
-    axes = y.hist(
-        bins=30,
-        figsize=(14, 8),
-        color='steelblue', edgecolor='black', alpha=0.7
-    )
+    axes = y.hist(bins=30, figsize=(14, 8), color="steelblue", edgecolor="black", alpha=0.7)
 
     for ax, col in zip(axes.flatten(), y.columns):
         mean = y[col].mean()
@@ -137,7 +181,22 @@ def plot_target_distributions(y):
     # plt.show()
 
 
-def plot_spectra_by_grouped_target(X, y):
+def plot_spectra_by_grouped_target(X: pd.DataFrame, y: pd.DataFrame) -> None:
+    """Plot mean spectra for low, medium, and high target quantiles.
+
+    Args:
+        X: Spectral DataFrame with numeric wavelength labels or configured
+            AS7343 channel names as columns. Its index must align with ``y``.
+        y: Numeric target DataFrame sharing the sample index of ``X``.
+
+    Raises:
+        ValueError: A target cannot be divided into three distinct quantile bins.
+
+    Note:
+        Uses a fixed 4-by-2 subplot grid, displaying at most eight targets, and
+        marks the 1000 nm sensor boundary. Call ``plt.show()`` to display the
+        figure outside a notebook. No figure is returned or saved.
+    """
     group_order = ["Low", "Medium", "High"]
 
     line_styles = {
@@ -219,11 +278,11 @@ if __name__ == "__main__":
     df_train = pd.read_parquet(train_path)
     X_train, y_train = split_dataset_into_X_y(df_train)
 
-    #plot input features
+    # plot input features
     plot_spectra(X_train)
     plot_spectral_distribution(X_train)
 
-    #plot targets
+    # plot targets
     plot_target_distributions(y_train)
     plot_spectra_by_grouped_target(X_train, y_train)
 

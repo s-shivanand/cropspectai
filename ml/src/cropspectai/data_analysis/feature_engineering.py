@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 import pandas as pd
 
 from cropspectai import ml_config
 from cropspectai.data_analysis import preprocessing
-
 
 AS7343_CHANNELS = list(ml_config.AS7343_CHANNELS.keys())
 
@@ -19,41 +20,58 @@ def _safe_divide(
     denominator: pd.Series,
     eps: float = EPS,
 ) -> pd.Series:
-    """Element-wise division while avoiding division by values near zero."""
+    """Divide aligned Series while masking near-zero denominators.
+
+    Args:
+        numerator: Numeric numerator values indexed by sample.
+        denominator: Numeric denominator values aligned with the numerator.
+        eps: Denominators with absolute values at or below this tolerance are
+            replaced by NaN before division.
+
+    Returns:
+        Floating-point Series aligned by index. Missing or near-zero
+        denominator values produce NaN results.
+    """
     denominator = denominator.astype(float)
     safe_denominator = denominator.where(denominator.abs() > eps, np.nan)
     return numerator.astype(float) / safe_denominator
 
 
 def _validate_as7343_channels(X: pd.DataFrame) -> None:
-    """Check that all required AS7343 reflectance channels are present."""
+    """Check that every configured AS7343 channel is present.
+
+    Args:
+        X: Reflectance DataFrame to inspect. Additional columns are allowed.
+
+    Raises:
+        ValueError: One or more required channel columns are missing.
+    """
     missing = [channel for channel in AS7343_CHANNELS if channel not in X.columns]
 
     if missing:
-        raise ValueError(
-            f"Missing AS7343 channel columns: {missing}. "
-            f"Expected: {AS7343_CHANNELS}"
-        )
+        raise ValueError(f"Missing AS7343 channel columns: {missing}. Expected: {AS7343_CHANNELS}")
 
 
 def add_established_chlorophyll_indices(X: pd.DataFrame) -> pd.DataFrame:
-    """Add established chlorophyll-sensitive vegetation indices.
+    """Append established chlorophyll-sensitive indices to reflectance data.
 
-    The original AS7343 channel columns are retained and the new index columns
-    are appended immediately after them.
+    Args:
+        X: Numeric reflectance DataFrame containing all twelve AS7343 channels.
+            Other columns are retained in their original order.
 
-    Notes
-    -----
-    Several published indices require narrow bands around wavelengths that the
-    AS7343 does not measure exactly. Their names therefore use an ``_as7343``
-    suffix to make clear that the nearest useful AS7343 channels are used.
+    Returns:
+        Copy of the input with chlorophyll index columns added or overwritten.
+        The input index is retained. Near-zero divisions and infinite values
+        become NaN; the input DataFrame is not modified.
 
-    Approximate mapping:
-        blue     -> FZ  (~450 nm)
-        green    -> F5  (~550 nm)
-        red      -> F7  (~690 nm)
-        red-edge -> F8  (~745 nm)
-        NIR      -> NIR (~855 nm)
+    Raises:
+        ValueError: A required AS7343 channel is missing.
+
+    Note:
+        Names ending in ``_as7343`` indicate approximations using available
+        sensor bands: FZ for blue (~450 nm), F5 for green (~550 nm), F7 for
+        red (~690 nm), F8 for red edge (~745 nm), and NIR for near infrared
+        (~855 nm). These bands do not exactly match every published formula.
     """
     _validate_as7343_channels(X)
 
@@ -92,14 +110,13 @@ def add_established_chlorophyll_indices(X: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Modified Chlorophyll Absorption Ratio Index (MCARI).
-    out["mcari_as7343"] = (
-        (red_edge - red) - 0.2 * (red_edge - green)
-    ) * _safe_divide(red_edge, red)
+    out["mcari_as7343"] = ((red_edge - red) - 0.2 * (red_edge - green)) * _safe_divide(
+        red_edge, red
+    )
 
     # Transformed Chlorophyll Absorption Ratio Index (TCARI).
     out["tcari_as7343"] = 3.0 * (
-        (red_edge - red)
-        - 0.2 * (red_edge - green) * _safe_divide(red_edge, red)
+        (red_edge - red) - 0.2 * (red_edge - green) * _safe_divide(red_edge, red)
     )
 
     # Optimized Soil Adjusted Vegetation Index, used as the denominator in
@@ -131,10 +148,24 @@ def add_established_chlorophyll_indices(X: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_additional_spectral_features(X: pd.DataFrame) -> pd.DataFrame:
-    """Add secondary pigment, greenness, ratio, and AS7343-native features.
+    """Append pigment, greenness, ratio, and sensor-specific features.
 
-    This function intentionally excludes the established chlorophyll-index
-    group above. It can therefore be evaluated as a separate feature set.
+    Args:
+        X: Numeric reflectance DataFrame containing all twelve AS7343 channels.
+            Other columns, including established indices, are retained.
+
+    Returns:
+        Copy of the input with additional feature columns added or overwritten.
+        The input index is retained. Near-zero divisions and infinite values
+        become NaN; the input DataFrame is not modified.
+
+    Raises:
+        ValueError: A required AS7343 channel is missing.
+
+    Note:
+        Excludes the established chlorophyll-index group so this feature set
+        can be evaluated separately. Some features are sensor-specific
+        contrasts or ratios rather than canonical published indices.
     """
     _validate_as7343_channels(X)
 
@@ -189,9 +220,7 @@ def add_additional_spectral_features(X: pd.DataFrame) -> pd.DataFrame:
         nir + green,
     )
 
-    out["red_edge_slope_proxy"] = (
-        (red_edge - red) / (745.0 - 690.0)
-    )
+    out["red_edge_slope_proxy"] = (red_edge - red) / (745.0 - 690.0)
 
     out["green_red_ratio"] = _safe_divide(green, red)
     out["rededge_green_ratio"] = _safe_divide(red_edge, green)
@@ -204,7 +233,19 @@ def add_additional_spectral_features(X: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_all_features(X: pd.DataFrame) -> pd.DataFrame:
-    """Add established chlorophyll indices followed by additional features."""
+    """Append established chlorophyll indices, then additional features.
+
+    Args:
+        X: Numeric reflectance DataFrame containing all twelve AS7343 channels.
+
+    Returns:
+        DataFrame retaining the original columns and index, followed by the
+        established and additional feature groups. Existing feature names
+        are overwritten. The input DataFrame is not modified.
+
+    Raises:
+        ValueError: A required AS7343 channel is missing.
+    """
     X_features = add_established_chlorophyll_indices(X)
     X_features = add_additional_spectral_features(X_features)
 
@@ -213,28 +254,25 @@ def add_all_features(X: pd.DataFrame) -> pd.DataFrame:
 
 def engineer_dataset_features(
     df: pd.DataFrame,
-    feature_set: str = "established", target: str = None
+    feature_set: Literal["established", "additional", "all"] = "established",
+    target: str | None = None,
 ) -> pd.DataFrame:
-    """Feature-engineer a full dataset while keeping target columns last.
+    """Engineer dataset features while keeping selected targets last.
 
-    The dataframe is first split into X and y using the project's existing
-    preprocessing helper. Features are generated only from X, preventing
-    target columns from entering any feature calculations.
+    Args:
+        df: Dataset containing all twelve AS7343 channels and target labels.
+        feature_set: Feature group to add: "established", "additional", or "all".
+        target: Single target to retain, or None to retain all configured targets.
 
-    Parameters
-    ----------
-    df:
-        Full dataframe containing AS7343 channels and target label columns.
-    feature_set:
-        "established" -> established chlorophyll indices only.
-        "additional"  -> additional spectral features only.
-        "all"         -> established indices followed by additional features.
+    Returns:
+        DataFrame ordered as original feature columns, engineered features,
+        then selected targets. The index is reset to a consecutive RangeIndex.
+        Target and configured non-feature columns are excluded from feature
+        calculations. The input DataFrame is not modified.
 
-    Returns
-    -------
-    pd.DataFrame
-        Columns ordered as:
-        [original X channels/features] -> [new engineered features] -> [targets]
+    Raises:
+        ValueError: The feature set is unsupported, target selection is invalid,
+            or a required target or AS7343 channel is missing.
     """
     X, y = preprocessing.split_dataset_into_X_y(df, target)
 
@@ -245,10 +283,7 @@ def engineer_dataset_features(
     elif feature_set == "all":
         X_engineered = add_all_features(X)
     else:
-        raise ValueError(
-            "feature_set must be one of: "
-            "'established', 'additional', or 'all'."
-        )
+        raise ValueError("feature_set must be one of: 'established', 'additional', or 'all'.")
 
     # X is deliberately concatenated before y so all engineered features sit
     # next to the spectral channels rather than after the target labels.
@@ -265,19 +300,13 @@ if __name__ == "__main__":
     target = "cab"
     datasplit = "train"
 
-    path = (
-        ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH
-        / target
-        / f"{datasplit}.parquet"
-    )
+    path = ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH / target / f"{datasplit}.parquet"
 
     df = pd.read_parquet(path)
 
     # Experiment 1:
     # 12 AS7343 channels + established chlorophyll indices + target columns.
-    df_established = engineer_dataset_features(
-        df,
-        feature_set="established", target=target)
+    df_established = engineer_dataset_features(df, feature_set="established", target=target)
 
     established_path = (
         ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH
@@ -290,15 +319,10 @@ if __name__ == "__main__":
     # Experiment 2:
     # 12 AS7343 channels + established chlorophyll indices
     # + all additional spectral features + target columns.
-    df_all = engineer_dataset_features(
-        df,
-        feature_set="all", target=target
-    )
+    df_all = engineer_dataset_features(df, feature_set="all", target=target)
 
     all_features_path = (
-        ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH
-        / target
-        / f"{datasplit}_all_features.parquet"
+        ml_config.PROCESSED_PARQUET_DATA_SPLITS_PATH / target / f"{datasplit}_all_features.parquet"
     )
 
     df_all.to_parquet(all_features_path, index=False)

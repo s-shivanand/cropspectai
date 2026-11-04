@@ -5,43 +5,68 @@ import tempfile
 import time
 import unittest
 from collections import deque
+from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import streamlit as st
-from app.tests.helpers import device_app
 
 from app.live_sensor import LiveSensor
+from app.tests.helpers import device_app
 from scripts import measure_predict as workflow
 
 
 class StreamingSerial:
-    def __init__(self, *args, **kwargs):
+    """Simulate live and batch serial frames without an ESP32 connection."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize a simulated serial connection with a ready frame."""
         self.lines = deque([b"AS7343_READY\n"])
         self.commands = []
         self.closed = False
         self.streaming = False
 
-    def reset_input_buffer(self):
+    def reset_input_buffer(self) -> None:
+        """Clear pending frames from the simulated serial buffer."""
         self.lines.clear()
 
-    def raw_line(self, prefix):
+    def raw_line(self, prefix: str) -> bytes:
+        """Build a calibrated simulated raw-count frame.
+
+        Args:
+            prefix: DATA for a live frame, or RAW for a measurement frame.
+
+        Returns:
+            Encoded frame with one raw-count value per configured channel.
+        """
         sensor = workflow.as7343_measure
         fraction = 0.25 if prefix == "DATA" else 0.5
-        raw = [dark + fraction * (white - dark)
-               for dark, white in zip(sensor.DARK_REF, sensor.WHITE_REF)]
+        raw = [
+            dark + fraction * (white - dark)
+            for dark, white in zip(sensor.DARK_REF, sensor.WHITE_REF)
+        ]
         return (prefix + "," + ",".join(str(value) for value in raw) + "\n").encode()
 
-    def write(self, command):
+    def write(self, command: bytes) -> None:
+        """Record a serial command and update simulated acquisition state.
+
+        Args:
+            command: Bytes written by the measurement or streaming workflow.
+        """
         self.commands.append(command)
         self.streaming = command == b"l"
         if command == b"r":
             self.lines.extend([self.raw_line("RAW")] * 10)
             self.lines.append(b"RAW_DONE\n")
 
-    def readline(self):
+    def readline(self) -> bytes:
+        """Read the next simulated frame.
+
+        Returns:
+            Next queued or generated frame, or empty bytes when no data is available.
+        """
         if self.lines:
             return self.lines.popleft()
         if self.streaming:
@@ -50,12 +75,16 @@ class StreamingSerial:
         time.sleep(0.005)
         return b""
 
-    def close(self):
+    def close(self) -> None:
+        """Mark the simulated serial connection as closed."""
         self.closed = True
 
 
 class LiveSensorTests(unittest.TestCase):
-    def setUp(self):
+    """Check live acquisition, ownership, cleanup, and measurement handoff."""
+
+    def setUp(self) -> None:
+        """Prepare temporary output paths and simulated hardware for each test."""
         stack = ExitStack()
         self.addCleanup(stack.close)
         self.directory = Path(stack.enter_context(tempfile.TemporaryDirectory()))
@@ -63,25 +92,40 @@ class LiveSensorTests(unittest.TestCase):
         self.predictions = self.directory / "predictions.csv"
         stack.enter_context(patch.object(workflow, "CSV_FILE", self.measurements))
         stack.enter_context(patch.object(workflow, "PREDICTION_FILE", self.predictions))
-        stack.enter_context(patch.object(workflow.list_ports, "comports", return_value=[
-            SimpleNamespace(device=workflow.as7343_measure.SERIAL_PORT)
-        ]))
+        stack.enter_context(
+            patch.object(
+                workflow.list_ports,
+                "comports",
+                return_value=[SimpleNamespace(device=workflow.as7343_measure.SERIAL_PORT)],
+            )
+        )
         self.connections = []
 
-        def connect(*args, **kwargs):
+        def connect(*args: object, **kwargs: object) -> StreamingSerial:
+            """Create a fresh simulated connection after checking port ownership."""
             self.assertTrue(all(connection.closed for connection in self.connections))
             connection = StreamingSerial()
             self.connections.append(connection)
             return connection
 
-        stack.enter_context(patch.object(workflow.as7343_measure.serial, "Serial", side_effect=connect))
+        stack.enter_context(
+            patch.object(workflow.as7343_measure.serial, "Serial", side_effect=connect)
+        )
         clock = SimpleNamespace(sleep=lambda _: None, monotonic=time.monotonic)
         stack.enter_context(patch.object(workflow, "time", clock))
         self.reader = LiveSensor()
         stack.enter_context(patch("app.live_sensor.get_live_sensor", return_value=self.reader))
         self.addCleanup(self.reader.close)
 
-    def wait_for(self, predicate):
+    def wait_for(self, predicate: Callable[[], bool]) -> None:
+        """Wait briefly for a background-reader condition to become true.
+
+        Args:
+            predicate: Callable returning True once the expected state is reached.
+
+        Raises:
+            AssertionError: The condition is not met within three seconds.
+        """
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
             if predicate():
@@ -89,7 +133,8 @@ class LiveSensorTests(unittest.TestCase):
             time.sleep(0.01)
         self.fail("Live reader did not reach the expected state")
 
-    def test_stream_normalizes_without_saving_and_stop_releases_port(self):
+    def test_stream_normalizes_without_saving_and_stop_releases_port(self) -> None:
+        """Verify stream normalizes without saving and stop releases port."""
         self.reader.start("session")
         self.wait_for(lambda: self.reader.snapshot("session").values is not None)
         reading = self.reader.snapshot("session")
@@ -109,28 +154,36 @@ class LiveSensorTests(unittest.TestCase):
         self.assertFalse(self.reader.snapshot("session").running)
         self.assertIsNotNone(workflow.measure_and_predict("after_preview").cab)
 
-    def test_disconnect_and_malformed_frames(self):
+    def test_disconnect_and_malformed_frames(self) -> None:
+        """Verify disconnect and malformed frames."""
         with patch.object(workflow.list_ports, "comports", return_value=[]):
             self.reader.start("session")
             self.wait_for(lambda: not self.reader.snapshot("session").running)
         self.assertIn("not connected", self.reader.snapshot("session").error)
         self.reader.start("session")
         self.wait_for(lambda: self.reader.snapshot("session").values is not None)
-        self.connections[0].lines.extend([
-            b"DATA,1,2\n", b"DATA,nan\n", b"DATA,not-a-number\n", b"Read failed\n",
-        ])
+        self.connections[0].lines.extend(
+            [
+                b"DATA,1,2\n",
+                b"DATA,nan\n",
+                b"DATA,not-a-number\n",
+                b"Read failed\n",
+            ]
+        )
         self.wait_for(lambda: not self.reader.snapshot("session").running)
         self.assertIn("could not read", self.reader.snapshot("session").error)
         self.assertTrue(self.connections[0].closed)
 
-    def test_browser_disconnect_releases_port(self):
+    def test_browser_disconnect_releases_port(self) -> None:
+        """Verify browser disconnect releases port."""
         self.reader.HEARTBEAT_TIMEOUT = 0.05
         self.reader.start("session")
         time.sleep(0.15)  # No snapshot heartbeats: simulate closing the browser.
         self.assertFalse(self.reader.snapshot("session").running)
         self.assertTrue(self.connections[0].closed)
 
-    def test_reset_stops_stream_and_clears_preview(self):
+    def test_reset_stops_stream_and_clears_preview(self) -> None:
+        """Verify reset stops stream and clears preview."""
         app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         app.text_input[0].set_value("leaf_to_clear")
         app.button(key="toggle_live").click().run()
@@ -149,10 +202,13 @@ class LiveSensorTests(unittest.TestCase):
         self.assertFalse(self.measurements.exists())
         app.button(key="device_yes").click().run()
         app.button(key="toggle_live").click().run()
-        self.wait_for(lambda: self.reader.snapshot(app.session_state.sensor_session).values is not None)
+        self.wait_for(
+            lambda: self.reader.snapshot(app.session_state.sensor_session).values is not None
+        )
         self.assertEqual(len(self.connections), 2)
 
-    def test_reset_clears_result_and_errors_without_changing_saved_data(self):
+    def test_reset_clears_result_and_errors_without_changing_saved_data(self) -> None:
+        """Verify reset clears result and errors without changing saved data."""
         app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         app.text_input[0].set_value("saved_leaf")
         app.button(key="measure_predict").click().run()
@@ -176,7 +232,8 @@ class LiveSensorTests(unittest.TestCase):
         self.assertEqual(len(app.get("vega_lite_chart")), 0)
         self.assertFalse(app.metric)
 
-    def test_ui_start_chart_stop_and_predict(self):
+    def test_ui_start_chart_stop_and_predict(self) -> None:
+        """Verify UI start chart stop and predict."""
         app = device_app(str(workflow.ml_config.PROJ_ROOT / "app/streamlit_app.py")).run()
         self.assertFalse(app.exception)
         app.button(key="toggle_live").click().run()
@@ -198,7 +255,9 @@ class LiveSensorTests(unittest.TestCase):
         self.assertFalse(self.reader.snapshot(owner).running)
         self.assertEqual(app.button(key="toggle_live").label, "Start")
         self.assertNotEqual(tuple(plotted_average), preview_values)
-        self.assertTrue(any("Average of 10 spectral readings" in item.value for item in app.markdown))
+        self.assertTrue(
+            any("Average of 10 spectral readings" in item.value for item in app.markdown)
+        )
         self.assertEqual([item.value for item in app.subheader], ["Predicted Cab"])
         wavelengths = plotted_data["Wavelength (nm)"].astype(int).tolist()
         self.assertEqual(wavelengths, sorted(workflow.fimware_config.WAVELENGTHS))
@@ -206,11 +265,13 @@ class LiveSensorTests(unittest.TestCase):
         with self.measurements.open(newline="") as handle:
             rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 1)
-            self.assertEqual(plotted_average, [float(rows[0][name])
-                                              for name in plotted_data["Channel"]])
-            self.assertEqual(app.session_state.averaged_spectrum,
-                             tuple(float(rows[0][name])
-                                   for name in workflow.fimware_config.CHANNEL_NAMES))
+            self.assertEqual(
+                plotted_average, [float(rows[0][name]) for name in plotted_data["Channel"]]
+            )
+            self.assertEqual(
+                app.session_state.averaged_spectrum,
+                tuple(float(rows[0][name]) for name in workflow.fimware_config.CHANNEL_NAMES),
+            )
         with self.predictions.open(newline="") as handle:
             self.assertEqual(len(list(csv.DictReader(handle))), 1)
         # Restarting the live preview replaces the measured spectrum again.

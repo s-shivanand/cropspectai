@@ -3,7 +3,14 @@
 import streamlit as st
 
 
-def smooth_layout():
+def smooth_layout() -> None:
+    """Install browser-side height transitions for the workflow panel.
+
+    Note:
+        Renders a minimal iframe that observes workflow content, rebinds after
+        Streamlit reruns, and animates height changes after a short debounce.
+        Respects the browser's reduced-motion setting. No app data is changed.
+    """
     st.iframe(
         """
         <script>
@@ -70,5 +77,7 @@ def smooth_layout():
         }
         </script>
         """,
-        height=1, tab_index=-1, alt="Smooth workflow transitions",
+        height=1,
+        tab_index=-1,
+        alt="Smooth workflow transitions",
     )

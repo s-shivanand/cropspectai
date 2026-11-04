@@ -1,4 +1,11 @@
-"""Local sensor interface: uv run streamlit run app/streamlit_app.py."""
+"""Render ESP32 measurement, sample prediction, and specimen tracking workflows.
+
+Run from the repository root with:
+    uv run streamlit run app/streamlit_app.py
+
+Streamlit reruns this module after widget interactions. Callbacks update
+session state, while the cached live reader handles background acquisition.
+"""
 
 import sys
 from html import escape
@@ -14,15 +21,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.measure_predict import measure_and_predict  # noqa: E402
-from scripts import measure_predict as workflow  # noqa: E402
-from app.live_sensor import get_live_sensor  # noqa: E402
-from app.greenness import GAUGE_WIDTH, SPECTRUM_HEIGHT, greenness_gauge, spectrum_mndvi  # noqa: E402
 from app.cab_scale import TOOLSRTM_RANGE_URL, cab_scale  # noqa: E402
-from app.tracking import append_tracking_prediction, specimen_tracking_path  # noqa: E402
-from app.tracking_history import render_tracking_history  # noqa: E402
-from app.sample_data import SAMPLES_DIR, load_samples, predict_sample  # noqa: E402
+from app.greenness import (  # noqa: E402
+    GAUGE_WIDTH,
+    SPECTRUM_HEIGHT,
+    greenness_gauge,
+    spectrum_mndvi,
+)
 from app.layout_transitions import smooth_layout  # noqa: E402
+from app.live_sensor import get_live_sensor  # noqa: E402
+from app.sample_data import SAMPLES_DIR, load_samples, predict_sample  # noqa: E402
+from app.tracking import (  # noqa: E402
+    append_tracking_prediction,
+    specimen_tracking_path,
+)
+from app.tracking_history import render_tracking_history  # noqa: E402
+from scripts import measure_predict as workflow  # noqa: E402
+from scripts.measure_predict import measure_and_predict  # noqa: E402
 
 st.set_page_config(page_title="cropSpectAI", page_icon="🍃", layout="centered")
 
@@ -400,39 +415,76 @@ sensor_session = st.session_state.sensor_session
 tracking_choices = st.session_state.setdefault("tracking_choices", {})
 
 
-def reset_app():
-    """Return this app session to its initial view without changing saved files."""
+def reset_app() -> None:
+    """Stop live reading and return this session to the initial device question.
+
+    Note:
+        Clears specimen, sample, result, preview, and tracking-choice state,
+        then assigns a fresh sensor-session identifier. Saved files are retained.
+        If stopping fails, records an error and leaves the session state intact.
+    """
     try:
         live_sensor.stop(st.session_state.sensor_session)
     except Exception as exc:
         st.session_state.measurement_error = f"Could not reset the app: {exc}"
         return
     for key in (
-        "specimen_label", "measurement_result", "measurement_error",
-        "averaged_spectrum", "live_requested", "live_action_error", "last_displayed_spectrum",
-        "current_tracking_path", "tracking_error", "tracking_choices", "reveal_result",
-        "sample_mode", "sample_specimen", "device_available",
+        "specimen_label",
+        "measurement_result",
+        "measurement_error",
+        "averaged_spectrum",
+        "live_requested",
+        "live_action_error",
+        "last_displayed_spectrum",
+        "current_tracking_path",
+        "tracking_error",
+        "tracking_choices",
+        "reveal_result",
+        "sample_mode",
+        "sample_specimen",
+        "device_available",
     ):
         st.session_state.pop(key, None)
     # A fresh owner hides any last frame or error retained by the stopped reader.
     st.session_state.sensor_session = uuid4().hex
 
 
-def choose_device(available):
+def choose_device(available: bool) -> None:
+    """Reset the current workflow and record the chosen device availability.
+
+    Args:
+        available: True for the ESP32 workflow or False for the sample workflow.
+
+    Note:
+        The choice is changed only if reset completes without a measurement error.
+    """
     reset_app()
     if "measurement_error" not in st.session_state:
         st.session_state.device_available = available
 
 
-def use_sample_data():
+def use_sample_data() -> None:
+    """Enable the sample workflow for the current Streamlit session."""
     st.session_state.sample_mode = True
 
 
-def select_sample():
+def select_sample() -> None:
+    """Copy the selected sample label and reflectance into preview state.
+
+    Note:
+        Reads the sample_specimen widget value, clears stale results and
+        tracking display state, and prepares the saved spectrum for preview.
+        No model prediction or file write is performed.
+    """
     label = st.session_state.sample_specimen
     st.session_state.specimen_label = label or ""
-    for key in ("measurement_result", "measurement_error", "current_tracking_path",
-                "tracking_error", "averaged_spectrum"):
+    for key in (
+        "measurement_result",
+        "measurement_error",
+        "current_tracking_path",
+        "tracking_error",
+        "averaged_spectrum",
+    ):
         st.session_state.pop(key, None)
     if label:
         sample = load_samples().set_index("specimen").loc[label]
@@ -442,10 +494,20 @@ def select_sample():
 device_available = st.session_state.get("device_available")
 st.write("Do you have ESP32 measuring device?")
 with st.container(key="device_choice", horizontal=True, horizontal_alignment="center"):
-    st.button("Yes", key="device_yes", on_click=choose_device, args=(True,),
-              type="primary" if device_available is True else "secondary")
-    st.button("No", key="device_no", on_click=choose_device, args=(False,),
-              type="primary" if device_available is False else "secondary")
+    st.button(
+        "Yes",
+        key="device_yes",
+        on_click=choose_device,
+        args=(True,),
+        type="primary" if device_available is True else "secondary",
+    )
+    st.button(
+        "No",
+        key="device_no",
+        on_click=choose_device,
+        args=(False,),
+        type="primary" if device_available is False else "secondary",
+    )
 
 smooth_layout()
 # Reserve the footer after the animated panel before filling its conditional content.
@@ -453,8 +515,12 @@ smooth_layout()
 workflow_panel = st.container(key="workflow_panel", gap=None)
 if device_available is not None:
     with st.container(key="reset_footer", horizontal=True, horizontal_alignment="center"):
-        st.button("Reset", key="reset_app", on_click=reset_app,
-                  help="Stop reading and return to the device question. Saved measurements are kept.")
+        st.button(
+            "Reset",
+            key="reset_app",
+            on_click=reset_app,
+            help="Stop reading and return to the device question. Saved measurements are kept.",
+        )
 
 with workflow_panel:
     with st.container(key="workflow_content"):
@@ -464,26 +530,39 @@ with workflow_panel:
         sample_mode = st.session_state.get("sample_mode", False)
         if not device_available:
             st.write("Don't have measuring device?")
-            with st.container(key="sample_controls", horizontal=True, horizontal_alignment="center"):
+            with st.container(
+                key="sample_controls", horizontal=True, horizontal_alignment="center"
+            ):
                 st.button("Use sample data", key="use_sample_data", on_click=use_sample_data)
             if not sample_mode:
                 st.stop()
             st.caption("Explore saved spectra without connecting a measuring device.")
         else:
-            st.caption("Connect the ESP32 measuring device and position the leaf before measuring.")
-
+            st.caption(
+                "Connect the ESP32 measuring device and position the leaf before measuring."
+            )
 
         @st.fragment(run_every=0.5 if st.session_state.get("live_requested") else None)
-        def reading_sensor():
+        def reading_sensor() -> None:
+            """Render live or selected-sample spectra and their status messages.
+
+            Note:
+                This Streamlit fragment polls while live reading is requested. It
+                manages Start/Stop actions, retains the last visible frame on reconnect,
+                and displays the spectrum and MNDVI gauge without saving measurements.
+            """
             requested = st.session_state.get("live_requested", False)
             reading = live_sensor.snapshot(sensor_session)
             averaged_spectrum = st.session_state.get("averaged_spectrum")
             show_average = averaged_spectrum is not None and not reading.running
             result = st.session_state.get("measurement_result")
             if not st.session_state.get("sample_mode"):
-                with st.container(key="reading_controls", horizontal_alignment="center", gap="small"):
-                    if st.button("Stop" if requested else "Start",
-                                 key="toggle_live", type="secondary"):
+                with st.container(
+                    key="reading_controls", horizontal_alignment="center", gap="small"
+                ):
+                    if st.button(
+                        "Stop" if requested else "Start", key="toggle_live", type="secondary"
+                    ):
                         try:
                             if requested:
                                 live_sensor.stop(sensor_session)
@@ -502,7 +581,9 @@ with workflow_panel:
                     elif reading.values is not None:
                         action_hint = "Start reading to resume the live spectrum preview."
                     else:
-                        action_hint = "Start reading to preview the leaf’s spectrum before measuring."
+                        action_hint = (
+                            "Start reading to preview the leaf’s spectrum before measuring."
+                        )
                     st.caption(action_hint)
 
             if requested and not reading.running:
@@ -519,66 +600,107 @@ with workflow_panel:
                 plot_values = st.session_state.get("last_displayed_spectrum")
             with st.container(key="spectrum_panel", gap="small"):
                 st.markdown(
-                    '<span class="spectrum-ready" hidden></span>' if plot_values is not None
-                    else '<span hidden></span>',
+                    '<span class="spectrum-ready" hidden></span>'
+                    if plot_values is not None
+                    else "<span hidden></span>",
                     unsafe_allow_html=True,
                 )
                 if plot_values is not None:
                     channels = workflow.fimware_config
-                    data = pd.DataFrame({
-                        "Wavelength (nm)": channels.WAVELENGTHS,
-                        "Reflectance": plot_values,
-                        "Channel": channels.CHANNEL_NAMES,
-                        "Color": channels.BAR_COLORS,
-                    }).sort_values("Wavelength (nm)")
+                    data = pd.DataFrame(
+                        {
+                            "Wavelength (nm)": channels.WAVELENGTHS,
+                            "Reflectance": plot_values,
+                            "Channel": channels.CHANNEL_NAMES,
+                            "Color": channels.BAR_COLORS,
+                        }
+                    ).sort_values("Wavelength (nm)")
                     data["Wavelength (nm)"] = data["Wavelength (nm)"].astype(str)
                     labels = data["Wavelength (nm)"].tolist()
-                    chart = alt.Chart(data).mark_bar(
-                        cornerRadiusTopLeft=5, cornerRadiusTopRight=5, opacity=0.9,
-                    ).encode(
-                        x=alt.X(
-                            "Wavelength (nm):N", sort=labels,
-                            scale=alt.Scale(paddingInner=0.28, paddingOuter=0.2),
-                            axis=alt.Axis(labelAngle=0, grid=False, titlePadding=16),
-                        ),
-                        y=alt.Y(
-                            "Reflectance:Q", scale=alt.Scale(domain=[0, 1]),
-                            axis=alt.Axis(values=[0, 0.2, 0.4, 0.6, 0.8, 1], format=".1f", titlePadding=14),
-                        ),
-                        color=alt.Color("Color:N", scale=None, legend=None),
-                        tooltip=["Channel:N", "Wavelength (nm):N", alt.Tooltip("Reflectance:Q", format=".4f")],
-                    ).properties(
-                        height=SPECTRUM_HEIGHT, background="transparent",
-                        autosize=alt.AutoSizeParams(type="fit-x", contains="content"),
-                        padding={"top": 16, "right": 0, "bottom": 16, "left": 0},
-                    ).configure_axis(
-                        labelColor="#d4e4d9", titleColor="#e5efe8",
-                        labelFont="Avenir Next", titleFont="Avenir Next",
-                        labelFontSize=14, titleFontSize=15, titleFontWeight=600,
-                        labelPadding=8, domain=False, ticks=False,
-                        gridColor="#688473", gridOpacity=0.25, gridDash=[3, 5],
-                    ).configure_view(
-                        fill="#102018", strokeOpacity=0,
+                    chart = (
+                        alt.Chart(data)
+                        .mark_bar(
+                            cornerRadiusTopLeft=5,
+                            cornerRadiusTopRight=5,
+                            opacity=0.9,
+                        )
+                        .encode(
+                            x=alt.X(
+                                "Wavelength (nm):N",
+                                sort=labels,
+                                scale=alt.Scale(paddingInner=0.28, paddingOuter=0.2),
+                                axis=alt.Axis(labelAngle=0, grid=False, titlePadding=16),
+                            ),
+                            y=alt.Y(
+                                "Reflectance:Q",
+                                scale=alt.Scale(domain=[0, 1]),
+                                axis=alt.Axis(
+                                    values=[0, 0.2, 0.4, 0.6, 0.8, 1],
+                                    format=".1f",
+                                    titlePadding=14,
+                                ),
+                            ),
+                            color=alt.Color("Color:N", scale=None, legend=None),
+                            tooltip=[
+                                "Channel:N",
+                                "Wavelength (nm):N",
+                                alt.Tooltip("Reflectance:Q", format=".4f"),
+                            ],
+                        )
+                        .properties(
+                            height=SPECTRUM_HEIGHT,
+                            background="transparent",
+                            autosize=alt.AutoSizeParams(type="fit-x", contains="content"),
+                            padding={"top": 16, "right": 0, "bottom": 16, "left": 0},
+                        )
+                        .configure_axis(
+                            labelColor="#d4e4d9",
+                            titleColor="#e5efe8",
+                            labelFont="Avenir Next",
+                            titleFont="Avenir Next",
+                            labelFontSize=14,
+                            titleFontSize=15,
+                            titleFontWeight=600,
+                            labelPadding=8,
+                            domain=False,
+                            ticks=False,
+                            gridColor="#688473",
+                            gridOpacity=0.25,
+                            gridDash=[3, 5],
+                        )
+                        .configure_view(
+                            fill="#102018",
+                            strokeOpacity=0,
+                        )
                     )
                     plot_column, greenness_column = st.columns([6, 1.3], gap="small")
                     with plot_column:
                         st.altair_chart(chart, width="stretch", theme=None, key="spectrum_plot")
                     with greenness_column:
                         st.image(
-                            greenness_gauge(spectrum_mndvi(plot_values)), width=GAUGE_WIDTH,
+                            greenness_gauge(spectrum_mndvi(plot_values)),
+                            width=GAUGE_WIDTH,
                             alt="Relative leaf greenness: MNDVI on a yellow-to-green scale from 0 to 1.",
                         )
             if plot_values is not None:
                 if show_average:
                     count = workflow.as7343_measure.SENSOR_SETTINGS["n_avg"]
-                    status = ("Sample spectrum" if st.session_state.get("sample_mode")
-                              else f"Average of {count} spectral readings")
+                    status = (
+                        "Sample spectrum"
+                        if st.session_state.get("sample_mode")
+                        else f"Average of {count} spectral readings"
+                    )
                     if result is not None:
                         status += f" · Specimen: {result.measurement['specimen']}"
                     status_color = "#7dd3fc"
                 else:
-                    status = ("Connecting · previous spectrum" if reading.running and reading.values is None
-                              else "Reading active" if reading.running else "Reading stopped · last live spectrum")
+                    status = (
+                        "Connecting · previous spectrum"
+                        if reading.running and reading.values is None
+                        else "Reading active"
+                        if reading.running
+                        else "Reading stopped · last live spectrum"
+                    )
                     status_color = "#86efac" if reading.running else "#eab308"
                 status_style = "font-weight: 400; font-size: 1rem; line-height: 1.5;"
                 with st.container(key="spectrum_status", gap="small"):
@@ -592,23 +714,34 @@ with workflow_panel:
             for warning in reading.warnings:
                 st.warning(warning)
 
-
         if sample_mode:
             with st.container(key="sample_data_panel"):
                 samples = load_samples()
                 st.dataframe(samples, hide_index=True, width="stretch")
                 st.write("Choose specimen to preview spectrum and press Predict Cab below.")
-                st.selectbox("Choose specimen", options=samples["specimen"].tolist(), index=None,
-                             placeholder="Choose specimen", key="sample_specimen",
-                             on_change=select_sample, label_visibility="collapsed")
+                st.selectbox(
+                    "Choose specimen",
+                    options=samples["specimen"].tolist(),
+                    index=None,
+                    placeholder="Choose specimen",
+                    key="sample_specimen",
+                    on_change=select_sample,
+                    label_visibility="collapsed",
+                )
                 selected_specimen = st.session_state.get("sample_specimen")
                 if selected_specimen:
                     photo = SAMPLES_DIR / f"{selected_specimen}.jpg"
                     if photo.is_file():
                         with st.container(key="sample_photo", horizontal_alignment="center"):
-                            st.image(str(photo), width=280, caption=selected_specimen.replace("_", " "),
-                                     alt=f"Leaf sample: {selected_specimen}")
-                st.caption("Sample predictions are for exploration and are not saved to measurement or tracking files.")
+                            st.image(
+                                str(photo),
+                                width=280,
+                                caption=selected_specimen.replace("_", " "),
+                                alt=f"Leaf sample: {selected_specimen}",
+                            )
+                st.caption(
+                    "Sample predictions are for exploration and are not saved to measurement or tracking files."
+                )
 
         reading_sensor()
         st.divider()
@@ -616,12 +749,19 @@ with workflow_panel:
         with st.form("measurement", enter_to_submit=False):
             if sample_mode:
                 specimen = st.session_state.get("sample_specimen") or ""
-                st.write(f"Specimen chosen: {specimen}" if specimen else "Choose a specimen above.")
+                st.write(
+                    f"Specimen chosen: {specimen}" if specimen else "Choose a specimen above."
+                )
             else:
-                specimen = st.text_input("Specimen label", placeholder="e.g. leaf_01", key="specimen_label")
+                specimen = st.text_input(
+                    "Specimen label", placeholder="e.g. leaf_01", key="specimen_label"
+                )
             with st.container(horizontal=True, horizontal_alignment="center"):
-                submitted = st.form_submit_button("Predict Cab" if sample_mode else "Measure and predict",
-                                                  type="primary", key="measure_predict")
+                submitted = st.form_submit_button(
+                    "Predict Cab" if sample_mode else "Measure and predict",
+                    type="primary",
+                    key="measure_predict",
+                )
 
         # Keep the progress message in its own stable slot, so Streamlit never reuses
         # the previous result's container for the spinner during a measurement.
@@ -643,20 +783,29 @@ with workflow_panel:
                 try:
                     count = workflow.as7343_measure.SENSOR_SETTINGS["n_avg"]
                     with measurement_status.container(
-                        key="measurement_status", horizontal=True, horizontal_alignment="center",
+                        key="measurement_status",
+                        horizontal=True,
+                        horizontal_alignment="center",
                     ):
                         with st.spinner(
-                            "Calculating Cab from the selected sample…" if sample_mode else
-                            f"Taking {count} readings and calculating their average. Keep the specimen in place…",
+                            "Calculating Cab from the selected sample…"
+                            if sample_mode
+                            else f"Taking {count} readings and calculating their average. Keep the specimen in place…",
                             width="content",
                         ):
                             live_sensor.stop(sensor_session)
                             st.session_state.live_requested = False
                             if sample_mode:
-                                sample = samples.loc[
-                                    samples["specimen"] == st.session_state.sample_specimen
-                                ].iloc[0].to_dict()
-                                st.session_state.measurement_result = predict_sample(sample, specimen)
+                                sample = (
+                                    samples.loc[
+                                        samples["specimen"] == st.session_state.sample_specimen
+                                    ]
+                                    .iloc[0]
+                                    .to_dict()
+                                )
+                                st.session_state.measurement_result = predict_sample(
+                                    sample, specimen
+                                )
                             else:
                                 st.session_state.measurement_result = measure_and_predict(specimen)
                             st.session_state.averaged_spectrum = tuple(
@@ -667,16 +816,20 @@ with workflow_panel:
                             prediction = st.session_state.measurement_result
                             if prediction.cab is not None and not sample_mode:
                                 tracking_file = specimen_tracking_path(
-                                    prediction.measurement["specimen"], workflow.PREDICTION_FILE,
+                                    prediction.measurement["specimen"],
+                                    workflow.PREDICTION_FILE,
                                 )
-                                if tracking_choices.get(prediction.measurement["specimen"]) is True:
+                                if (
+                                    tracking_choices.get(prediction.measurement["specimen"])
+                                    is True
+                                ):
                                     try:
-                                        append_tracking_prediction(prediction.prediction_row, tracking_file)
+                                        append_tracking_prediction(
+                                            prediction.prediction_row, tracking_file
+                                        )
                                         st.session_state.current_tracking_path = str(tracking_file)
                                     except Exception as exc:
-                                        st.session_state.tracking_error = (
-                                            f"Prediction saved, but specimen tracking failed: {exc}"
-                                        )
+                                        st.session_state.tracking_error = f"Prediction saved, but specimen tracking failed: {exc}"
                 except Exception as exc:
                     st.session_state.measurement_error = str(exc)
                 st.rerun()
@@ -689,13 +842,15 @@ with workflow_panel:
             reveal_result = st.session_state.pop("reveal_result", False)
             with st.container(key="result_card", border=True, gap="small"):
                 if reveal_result:
-                    st.markdown('<span class="result-arriving" hidden></span>', unsafe_allow_html=True)
+                    st.markdown(
+                        '<span class="result-arriving" hidden></span>', unsafe_allow_html=True
+                    )
                 st.subheader("Predicted Cab", anchor=False, text_alignment="center")
                 specimen_label = escape(str(result.measurement["specimen"]))
                 measured_at = escape(str(result.measurement["timestamp"]).replace("T", " "))
                 st.markdown(
                     f'<div class="result-meta">Specimen: <strong>{specimen_label}</strong>'
-                    f'<br>Measured at {measured_at}</div>',
+                    f"<br>Measured at {measured_at}</div>",
                     unsafe_allow_html=True,
                 )
                 if result.cab is not None:
@@ -705,25 +860,38 @@ with workflow_panel:
                         label_visibility="collapsed",
                     )
                     if not sample_mode:
-                        tracking_file = specimen_tracking_path(result.measurement["specimen"], workflow.PREDICTION_FILE)
-                        already_tracked = st.session_state.get("current_tracking_path") == str(tracking_file)
+                        tracking_file = specimen_tracking_path(
+                            result.measurement["specimen"], workflow.PREDICTION_FILE
+                        )
+                        already_tracked = st.session_state.get("current_tracking_path") == str(
+                            tracking_file
+                        )
                         label = result.measurement["specimen"]
                         tracking_enabled = tracking_choices.get(label) is True
-                        needs_choice = tracking_file.exists() and label not in tracking_choices and not already_tracked
+                        needs_choice = (
+                            tracking_file.exists()
+                            and label not in tracking_choices
+                            and not already_tracked
+                        )
                         enable_tracking = False
                         if tracking_enabled:
                             with st.container(horizontal=True, horizontal_alignment="center"):
                                 if st.button(
-                                    "Stop tracking", key="stop_tracking",
+                                    "Stop tracking",
+                                    key="stop_tracking",
                                     help="Stop specimen-specific saves for this session. Saved records are kept.",
                                 ):
                                     tracking_choices[label] = False
                                     st.session_state.pop("tracking_error", None)
                                     st.rerun()
                         elif needs_choice:
-                            st.caption(f"Specimen: {label} already has a tracking file. Continue to track?")
+                            st.caption(
+                                f"Specimen: {label} already has a tracking file. Continue to track?"
+                            )
                             with st.container(horizontal=True, horizontal_alignment="center"):
-                                enable_tracking = st.button("Continue to track", key="continue_tracking")
+                                enable_tracking = st.button(
+                                    "Continue to track", key="continue_tracking"
+                                )
                                 if st.button("Don't track", key="decline_tracking"):
                                     tracking_choices[label] = False
                                     st.session_state.pop("tracking_error", None)
@@ -731,13 +899,16 @@ with workflow_panel:
                         else:
                             with st.container(horizontal=True, horizontal_alignment="center"):
                                 enable_tracking = st.button(
-                                    "Track", key="track_specimen",
+                                    "Track",
+                                    key="track_specimen",
                                     help="Save this prediction and future measurements of this specimen separately.",
                                 )
                         if enable_tracking:
                             try:
                                 if not already_tracked:
-                                    append_tracking_prediction(getattr(result, "prediction_row", None), tracking_file)
+                                    append_tracking_prediction(
+                                        getattr(result, "prediction_row", None), tracking_file
+                                    )
                                 tracking_choices[label] = True
                                 st.session_state.current_tracking_path = str(tracking_file)
                                 st.session_state.pop("tracking_error", None)
@@ -749,7 +920,8 @@ with workflow_panel:
                         if st.session_state.get("tracking_error"):
                             st.error(st.session_state.tracking_error)
                     st.image(
-                        cab_scale(result.cab), width="stretch",
+                        cab_scale(result.cab),
+                        width="stretch",
                         alt="Cab scale from 0 to 100 µg/cm², with 20–80 highlighted and the prediction marked.",
                     )
                     st.caption(
@@ -757,8 +929,10 @@ with workflow_panel:
                         "range for healthy vegetation."
                     )
                 else:
-                    st.error(f"Prediction failed: {result.prediction_error}. "
-                             "The spectral measurement is saved; no prediction was saved.")
+                    st.error(
+                        f"Prediction failed: {result.prediction_error}. "
+                        "The spectral measurement is saved; no prediction was saved."
+                    )
                 for warning in result.warnings:
                     if warning == (
                         "ESP32 readiness was not confirmed. If acquisition fails, "
@@ -777,7 +951,9 @@ with workflow_panel:
             if not sample_mode and tracking_choices.get(result.measurement["specimen"]) is True:
                 st.divider()
                 render_tracking_history(
-                    specimen_tracking_path(result.measurement["specimen"], workflow.PREDICTION_FILE),
+                    specimen_tracking_path(
+                        result.measurement["specimen"], workflow.PREDICTION_FILE
+                    ),
                     result.measurement["specimen"],
                 )
 
@@ -806,5 +982,7 @@ with workflow_panel:
                     requestAnimationFrame(revealResult);
                     </script>
                     """,
-                    height=1, tab_index=-1, alt="Reveal the new prediction",
+                    height=1,
+                    tab_index=-1,
+                    alt="Reveal the new prediction",
                 )

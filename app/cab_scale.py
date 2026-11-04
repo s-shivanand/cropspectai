@@ -2,13 +2,24 @@
 
 import math
 
-TOOLSRTM_RANGE_URL = (
+TOOLSRTM_RANGE_URL: str = (
     "https://rtm-suite.wur.nl/quarto-hub-toolsrtm/_site/tutorials/python/"
     "t02-parameters-traits.html"
 )
 
 
-def cab_scale(value):
+def cab_scale(value: float | None) -> str:
+    """Render the predicted Cab value on an SVG reference scale.
+
+    Args:
+        value: Predicted Cab in micrograms per square centimeter, or None when
+            unavailable. Nonfinite values are also treated as unavailable.
+
+    Returns:
+        Accessible SVG markup with a 0-100 scale and a highlighted 20-80 band.
+        The marker is bounded to the scale, while the displayed value remains
+        unchanged and out-of-range predictions are labeled.
+    """
     available = value is not None and math.isfinite(value)
     actual = f"{value:.1f}" if available else "unavailable"
     marker = ""
@@ -40,7 +51,7 @@ def cab_scale(value):
         'fill="none" stroke="#bdd0c3" stroke-opacity="0.4"/>'
         '<line x1="110.4" y1="9" x2="110.4" y2="35" stroke="#b4efca"/>'
         '<line x1="369.6" y1="9" x2="369.6" y2="35" stroke="#b4efca"/>'
-        f'{marker}{ticks}'
+        f"{marker}{ticks}"
         f'<text x="240" y="97" text-anchor="middle" fill="#d4e4d9" '
         f'font-size="14">{note}</text></svg>'
     )

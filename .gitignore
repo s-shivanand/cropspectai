@@ -4,6 +4,16 @@
 /data/processed/
 /data/prediction/basil_experiment/
 
+#Reports
+/reports/
+
+#References
+/references/
+
+#Scripts
+/scripts/plot_specimen_progression.py
+/scripts/batch_predict.py
+
 # Models: retain only the deployed model and its configuration
 /models/*.joblib
 /models/*.json

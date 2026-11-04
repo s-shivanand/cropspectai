@@ -3,14 +3,24 @@
 import csv
 import hashlib
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from threading import Lock
+from typing import TextIO
 
 _TRACKING_LOCK = Lock()
 
 
-def _tracking_delimiter(handle):
-    """Recognize comma CSVs and semicolon CSVs saved by spreadsheet tools."""
+def _tracking_delimiter(handle: TextIO) -> str:
+    """Detect comma or semicolon delimiters and rewind the input handle.
+
+    Args:
+        handle: Seekable text stream positioned at the start of the CSV header.
+
+    Returns:
+        Detected delimiter, falling back to a comma if detection fails. The
+        stream is positioned at zero on return.
+    """
     header = handle.readline()
     handle.seek(0)
     try:
@@ -19,14 +29,40 @@ def _tracking_delimiter(handle):
         return ","
 
 
-def read_tracking_predictions(path):
-    """Read a complete snapshot without racing a specimen CSV append."""
+def read_tracking_predictions(path: str | Path) -> list[dict[str, str]]:
+    """Read a snapshot of specimen tracking rows under the append lock.
+
+    Args:
+        path: Comma- or semicolon-delimited tracking CSV to read.
+
+    Returns:
+        List of row dictionaries containing the recorded field strings.
+
+    Raises:
+        OSError: The file cannot be opened or read.
+    """
     with _TRACKING_LOCK:
         with Path(path).open(newline="") as handle:
             return list(csv.DictReader(handle, delimiter=_tracking_delimiter(handle)))
 
 
-def specimen_tracking_path(specimen, prediction_file):
+def specimen_tracking_path(specimen: str, prediction_file: str | Path) -> Path:
+    """Build a safe specimen-specific CSV path beside the prediction file.
+
+    Args:
+        specimen: Nonempty specimen label; surrounding whitespace is removed.
+        prediction_file: Central prediction CSV used to locate the parent folder.
+
+    Returns:
+        Path under the prediction file's tracked_specimens directory. Unsafe
+        or truncated labels receive a hash suffix to distinguish filenames.
+
+    Raises:
+        ValueError: The stripped specimen label is empty.
+
+    Note:
+        Only computes a path; no directories or files are created.
+    """
     label = str(specimen).strip()
     if not label:
         raise ValueError("A specimen label is required for tracking.")
@@ -37,8 +73,23 @@ def specimen_tracking_path(specimen, prediction_file):
     return Path(prediction_file).parent / "tracked_specimens" / f"{filename}.csv"
 
 
-def append_tracking_prediction(row, path):
-    """Preserve the usual prediction CSV's values, header, and column order."""
+def append_tracking_prediction(row: Mapping[str, object] | None, path: str | Path) -> None:
+    """Append an exact prediction row to its specimen tracking CSV.
+
+    Args:
+        row: Ordered mapping of saved prediction columns and values, including
+            timestamp, specimen, and cab. None indicates no saved prediction.
+        path: Destination specimen tracking CSV.
+
+    Raises:
+        ValueError: The row is incomplete, or an existing file's column order
+            or specimen label differs from the supplied row.
+        OSError: The file cannot be read or written.
+
+    Note:
+        Creates parent directories and the header when needed. Existing comma
+        or semicolon delimiters are preserved. Reads and appends share a lock.
+    """
     if row is None:
         raise ValueError("Take a new measurement before enabling tracking.")
     columns = list(row)
