@@ -13,33 +13,33 @@ from threading import Lock
 import pandas as pd
 from serial.tools import list_ports
 
-from cropspectai import config
+from cropspectai import ml_config
 from cropspectai.data_analysis.feature_engineering import add_all_features
 from cropspectai.modeling.predict import predict_model
 
 # Firmware scripts share imports from their src directory.
-FIRMWARE_SRC = config.PROJ_ROOT / "firmware" / "esp32-as7343-spectrometer" / "src"
+FIRMWARE_SRC = ml_config.PROJ_ROOT / "firmware" / "esp32-as7343-spectrometer" / "src"
 sys.path.insert(0, str(FIRMWARE_SRC))
 import as7343_measure  # noqa: E402
-import channel_config  # noqa: E402
+import fimware_config  # noqa: E402
 
 # Settings
 
 #model
 MODEL_VERSION = "v_01"
-MODEL_PATH = config.MODELS_DIR / f"xgb_{MODEL_VERSION}.joblib"
-MODEL_CONFIG_PATH = config.MODELS_DIR / f"xgb_best_parameters_{MODEL_VERSION}.json"
+MODEL_PATH = ml_config.MODELS_DIR / f"xgb_{MODEL_VERSION}.joblib"
+MODEL_CONFIG_PATH = ml_config.MODELS_DIR / f"xgb_best_parameters_{MODEL_VERSION}.json"
 
-#trail data
-CSV_FILE = channel_config.MISC_DATA_DIR / "reflectance.csv" # input
-PREDICTION_FILE = config.PREDICTION_DATA_DIR / "misc" / f"measure_prediction_{MODEL_VERSION}.csv" # output
+#trial data
+CSV_FILE = fimware_config.MISC_DATA_DIR / "reflectance.csv" # input
+PREDICTION_FILE = ml_config.PREDICTION_DATA_DIR / "misc" / f"measure_prediction_{MODEL_VERSION}.csv" # output
 
 #basil experiment data
-# CSV_FILE = channel_config.RAW_DATA_DIR / "basil_experiment.csv" # input
-# PREDICTION_FILE = config.BASIL_EXPERIMENT_DATA_PATH / f"measure_prediction_{MODEL_VERSION}.csv" # output
+# CSV_FILE = fimware_config.EXPERIMENT_DATA_DIR / "basil_experiment.csv" # input
+# PREDICTION_FILE = ml_config.BASIL_EXPERIMENT_DATA_PATH / f"measure_prediction_{MODEL_VERSION}.csv" # output
 
 
-CHANNELS = list(config.AS7343_CHANNELS)
+CHANNELS = list(ml_config.AS7343_CHANNELS)
 MEASUREMENT_COLUMNS = ["timestamp", "specimen", *CHANNELS, "noisy_channels"]
 _MEASUREMENT_LOCK = Lock()
 

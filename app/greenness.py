@@ -1,26 +1,49 @@
 """Display the existing AS7343 MNDVI feature on a fixed greenness scale."""
 
 import math
+from collections.abc import Sequence
 
 import pandas as pd
 
-from cropspectai import config
-from cropspectai.data_analysis.feature_engineering import add_established_chlorophyll_indices
+from cropspectai import ml_config
+from cropspectai.data_analysis.feature_engineering import (
+    add_established_chlorophyll_indices,
+)
 
-SPECTRUM_HEIGHT = 280
-GAUGE_WIDTH = 120
-GAUGE_TOP = 25  # Change this to move the bar, ticks, pointer, and labels together.
+SPECTRUM_HEIGHT: int = 280
+GAUGE_WIDTH: int = 120
+GAUGE_TOP: int = 25  # Change this to move the bar, ticks, pointer, and labels together.
 
 
-def spectrum_mndvi(values):
-    """Use the same channel mapping and safe division as model feature engineering."""
-    frame = pd.DataFrame([values], columns=list(config.AS7343_CHANNELS))
+def spectrum_mndvi(values: Sequence[float]) -> float | None:
+    """Calculate MNDVI using the same feature engineering as the model.
+
+    Args:
+        values: Reflectance values in ml_config.AS7343_CHANNELS order.
+
+    Returns:
+        Finite MNDVI, or None when the feature calculation is nonfinite, such
+        as when its denominator is zero. Finite values are not clipped.
+
+    Raises:
+        ValueError: The input cannot form a numeric row of configured channels.
+    """
+    frame = pd.DataFrame([values], columns=list(ml_config.AS7343_CHANNELS))
     value = float(add_established_chlorophyll_indices(frame)["mndvi_as7343"].iloc[0])
     return value if math.isfinite(value) else None
 
 
-def greenness_gauge(value):
-    """Render a yellow-to-green scale, with a bounded marker and actual MNDVI."""
+def greenness_gauge(value: float | None) -> str:
+    """Render a yellow-to-green SVG gauge for the actual MNDVI value.
+
+    Args:
+        value: MNDVI value, or None when unavailable. Nonfinite values are
+            displayed as unavailable.
+
+    Returns:
+        Accessible SVG markup. The marker stays within the 0-1 display scale,
+        while labels preserve the actual finite value and flag outliers.
+    """
     available = value is not None and math.isfinite(value)
     actual = f"{value:.3f}" if available else "N/A"
     note = ""
@@ -60,10 +83,10 @@ def greenness_gauge(value):
         '<stop offset="50%" stop-color="#06351c"/>'
         '<stop offset="75%" stop-color="#042716"/>'
         '<stop offset="100%" stop-color="#021a0e"/>'
-        '</linearGradient></defs>'
+        "</linearGradient></defs>"
         f'<rect x="24" y="{GAUGE_TOP}" width="28" height="{SPECTRUM_HEIGHT}" rx="9" '
         'fill="url(#mndvi-gradient)" stroke="#bdd0c3" stroke-opacity="0.35"/>'
-        f'{ticks}{marker}'
+        f"{ticks}{marker}"
         f'<text x="60" y="{bottom + 30}" text-anchor="middle" fill="#edf5ef" '
         f'font-size="18" font-weight="600">MNDVI {actual}</text>'
         f'<text x="60" y="{bottom + 51}" text-anchor="middle" fill="#c4f1d4" '

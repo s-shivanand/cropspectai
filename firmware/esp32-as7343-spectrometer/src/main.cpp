@@ -1,3 +1,12 @@
+/**
+ * @file main.cpp
+ * @brief Acquire AS7343 raw counts and serve measurement commands over serial.
+ *
+ * Commands: m sends batch means and sample standard deviations; r sends raw
+ * readings followed by RAW_DONE; l enables live DATA frames; s stops streaming.
+ * Channel order comes from channel_config.def. Keep sensor settings synchronized
+ * with SENSOR_SETTINGS in as7343_measure.py.
+ */
 #include <Adafruit_AS7343.h>
 #include <math.h>
 
@@ -14,17 +23,18 @@ Adafruit_AS7343 as7343;
 // ============================================================
 // SETTINGS
 // ============================================================
-const int  N_AVG        = 10;    // readings averaged per measurement
+const int N_AVG = 10;                        // Readings averaged per measurement
 const unsigned long AVG_INTERVAL_MS = 1000;  // minimum interval between averaged reading starts
 const unsigned long LIVE_INTERVAL_MS = 500;  // delay between live readings
 
-bool liveMode = false;           // false = idle, true = stream DATA lines
+bool liveMode = false;  // false = idle, true = stream DATA lines
 unsigned long lastLiveMs = 0;
 
-// ============================================================
-// Read spectral channels in the order defined by channel_config.def
-// Returns false if the sensor read failed.
-// ============================================================
+/**
+ * @brief Read raw counts in the shared channel order.
+ * @param vals Output buffer with space for N_CH values.
+ * @return True when all channels were read; false on a sensor read failure.
+ */
 bool readChannels(float vals[N_CH]) {
   uint16_t r[18];
   if (!as7343.readAllChannels(r)) {
@@ -36,9 +46,11 @@ bool readChannels(float vals[N_CH]) {
   return true;
 }
 
-// ============================================================
-// One live reading -> "DATA,v1,...,v13"
-// ============================================================
+/**
+ * @brief Emit one DATA frame with N_CH raw channel counts.
+ *
+ * Prints an error instead of a DATA frame if the sensor read fails.
+ */
 void sendLiveReading() {
   float v[N_CH];
   if (!readChannels(v)) {
@@ -53,11 +65,16 @@ void sendLiveReading() {
   Serial.println();
 }
 
-// ============================================================
-// Averaged measurement -> "AVG,mean1..mean13,std1..std13"
-// ============================================================
+/**
+ * @brief Acquire N_AVG readings and emit raw frames or batch statistics.
+ * @param sendRaw Emit RAW frames followed by RAW_DONE when true. Otherwise,
+ *        emit an AVG frame containing N_CH means and N_CH sample deviations.
+ *
+ * Reading starts are separated by at least AVG_INTERVAL_MS. A sensor read
+ * failure prints an error and aborts the batch without a completion frame.
+ */
 void takeAveragedMeasurement(bool sendRaw = false) {
-  double sum[N_CH]   = {0};
+  double sum[N_CH] = {0};
   double sumSq[N_CH] = {0};
   float v[N_CH];
 
@@ -78,7 +95,7 @@ void takeAveragedMeasurement(bool sendRaw = false) {
       Serial.println();
     }
     for (int c = 0; c < N_CH; c++) {
-      sum[c]   += v[c];
+      sum[c] += v[c];
       sumSq[c] += (double)v[c] * v[c];
     }
     // Include acquisition time in the interval; do not wait after the last read.
@@ -105,7 +122,7 @@ void takeAveragedMeasurement(bool sendRaw = false) {
   // Standard deviations (sample std dev, N-1)
   for (int c = 0; c < N_CH; c++) {
     double mean = sum[c] / N_AVG;
-    double var  = (sumSq[c] - N_AVG * mean * mean) / (N_AVG - 1);
+    double var = (sumSq[c] - N_AVG * mean * mean) / (N_AVG - 1);
     if (var < 0) var = 0;  // guard against tiny floating-point negatives
     Serial.print(",");
     Serial.print(sqrt(var), 2);
@@ -113,9 +130,11 @@ void takeAveragedMeasurement(bool sendRaw = false) {
   Serial.println();
 }
 
-// ============================================================
-// SETUP
-// ============================================================
+/**
+ * @brief Initialize serial, the sensor, and its LED before announcing readiness.
+ *
+ * Waits for the serial interface and halts if the sensor cannot be initialized.
+ */
 void setup() {
   Serial.begin(115200);
   while (!Serial) {
@@ -132,8 +151,8 @@ void setup() {
   }
   Serial.println("AS7343 found!");
 
-  as7343.setLEDCurrent(20);   // 20 mA
-  as7343.enableLED(true);     // LED stays on during the session
+  as7343.setLEDCurrent(20);  // 20 mA
+  as7343.enableLED(true);    // LED stays on during the session
 
   // Configure sensor
   as7343.setGain(AS7343_GAIN_64X);
@@ -147,13 +166,16 @@ void setup() {
   // Let the LED warm up and stabilize before any measurement
   delay(3000);
 
-  Serial.println("Commands: m = raw average, r = 10 raw readings for Python normalization, l = live stream ON, s = live stream OFF");
+  Serial.println(
+      "Commands: m = raw average, r = 10 raw readings for Python normalization, l = live stream ON, s = live stream OFF");
   Serial.println("AS7343_READY");
 }
 
-// ============================================================
-// LOOP
-// ============================================================
+/**
+ * @brief Process pending commands and send live readings when streaming is on.
+ *
+ * Measurement commands stop live streaming before starting their batch.
+ */
 void loop() {
   // 1. Handle commands from the computer
   while (Serial.available()) {
@@ -161,7 +183,7 @@ void loop() {
     if (cmd == '\n' || cmd == '\r' || cmd == ' ') continue;
 
     if (cmd == 'm') {
-      liveMode = false;               // stop streaming before measuring
+      liveMode = false;  // Stop streaming before measuring
       takeAveragedMeasurement();
     } else if (cmd == 'r') {
       liveMode = false;
