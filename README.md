@@ -23,7 +23,7 @@ a specimen over time—or try three sample leaves without any hardware.
   </tr>
   <tr>
     <td align="center" valign="middle">
-      <a href="firmware/esp32-as7343-spectrometer/data/device/full_demo.mov?raw=true">
+      <a href="firmware/esp32-as7343-spectrometer/data/device/full_demo.mp4?raw=true">
         <img src="firmware/esp32-as7343-spectrometer/data/device/device_setup.jpeg" width="240" alt="Handheld ESP32 leaf measuring device with a leaf positioned underneath.">
       </a>
     </td>
@@ -40,7 +40,7 @@ a specimen over time—or try three sample leaves without any hardware.
   </tr>
 </table>
 
-[Watch or download the full demo (.mov · 56 MB)](firmware/esp32-as7343-spectrometer/data/device/full_demo.mov?raw=true)
+[Watch or download the full demo (.mp4 · 29 MB)](firmware/esp32-as7343-spectrometer/data/device/full_demo.mp4?raw=true)
 
 Chlorophyll image: [Source](https://www.thetreecenter.com/what-is-chlorophyll/)
 
