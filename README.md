@@ -20,9 +20,9 @@ a specimen over time—or try three sample leaves without any hardware.
   <a href="https://youtu.be/MrCatPmRXBs">
     <img src="docs/images/device_step.svg" width="25%" align="middle" alt="1. Device setup: handheld ESP32 leaf measuring device with a leaf positioned underneath.">
   </a>
-  &nbsp; → &nbsp;
+  <img src="docs/images/step_arrow.svg" width="2.5%" align="middle" alt="→">
   <img src="docs/images/spectrum_step.svg" width="38%" align="middle" alt="2. Spectrum: leaf reflectance across the twelve AS7343 channels.">
-  &nbsp; → &nbsp;
+  <img src="docs/images/step_arrow.svg" width="2.5%" align="middle" alt="→">
   <a href="https://www.thetreecenter.com/what-is-chlorophyll/">
     <img src="docs/images/chlorophyll_step.svg" width="25%" align="middle" alt="3. Chlorophyll: illustration of green plant cells.">
   </a>
