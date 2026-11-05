@@ -1,52 +1,45 @@
 # 🍃 cropSpectAI
 
+[![Open Streamlit app](https://img.shields.io/badge/App-Streamlit-24834d?logo=streamlit&logoColor=white)](https://cropspectai.streamlit.app/)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![ESP32 and AS7343 hardware](https://img.shields.io/badge/Hardware-ESP32_%2B_AS7343-E7352C?logo=espressif&logoColor=white)](firmware/esp32-as7343-spectrometer/README.md)
+[![Custom noncommercial license](https://img.shields.io/badge/License-Custom_Noncommercial-D49A25?logo=github&logoColor=white)](LICENSE)
+[![Watch the full demo on YouTube](https://img.shields.io/badge/YouTube-Full_demo-FF0000?logo=youtube&logoColor=white)](https://youtu.be/MrCatPmRXBs)
+
 **Measure a leaf’s spectrum. Estimate its chlorophyll content.**
 
 An ESP32–AS7343 measuring device and a machine learning app for estimating leaf
 chlorophyll content (**Cab**, in µg/cm²). Preview spectra, predict Cab, and track
 a specimen over time—or try three sample leaves without any hardware.
 
-**[Open the live app →](https://cropspectai.streamlit.app/)**
-
-[Watch the full demo on YouTube](https://youtu.be/MrCatPmRXBs) ·
 [App guide](app/README.md) ·
 [Feature equations](docs/feature_engineering.md) ·
 [Run locally](#run-locally)
 
-<table>
-  <tr>
-    <th align="center">1. Device setup</th>
-    <th></th>
-    <th align="center">2. Spectrum</th>
-    <th></th>
-    <th align="center">3. Chlorophyll</th>
-  </tr>
-  <tr>
-    <td align="center" valign="middle">
-      <a href="https://youtu.be/MrCatPmRXBs">
-        <img src="firmware/esp32-as7343-spectrometer/data/device/device_setup.jpeg" width="240" alt="Handheld ESP32 leaf measuring device with a leaf positioned underneath.">
-      </a>
-    </td>
-    <td align="center">→</td>
-    <td align="center" valign="middle">
-      <img src="firmware/esp32-as7343-spectrometer/data/device/spectrum.png" width="360" alt="Leaf reflectance spectrum across the twelve AS7343 channels.">
-    </td>
-    <td align="center">→</td>
-    <td align="center" valign="middle">
-      <a href="https://www.thetreecenter.com/what-is-chlorophyll/">
-        <img src="firmware/esp32-as7343-spectrometer/data/device/chlorophyll.jpeg" width="240" alt="Illustration of green plant cells representing chlorophyll.">
-      </a>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://youtu.be/MrCatPmRXBs">
+    <img src="docs/images/device_step.svg" width="25%" align="middle" alt="1. Device setup: handheld ESP32 leaf measuring device with a leaf positioned underneath.">
+  </a>
+  &nbsp; → &nbsp;
+  <img src="docs/images/spectrum_step.svg" width="38%" align="middle" alt="2. Spectrum: leaf reflectance across the twelve AS7343 channels.">
+  &nbsp; → &nbsp;
+  <a href="https://www.thetreecenter.com/what-is-chlorophyll/">
+    <img src="docs/images/chlorophyll_step.svg" width="25%" align="middle" alt="3. Chlorophyll: illustration of green plant cells.">
+  </a>
+</p>
 
 Chlorophyll image: [Source](https://www.thetreecenter.com/what-is-chlorophyll/)
 
 ## Try it in your browser
 
+[![cropSpectAI app start page with the device Yes/No selection](docs/images/app_start_page.png)](https://cropspectai.streamlit.app/)
+
 No installation is needed for the [hosted app](https://cropspectai.streamlit.app/).
 
 ### No device? Try a sample
+
+Use any modern browser, including Chrome, Edge, Firefox, Safari, Brave, or Opera,
+on a computer or phone. The sample workflow does not need USB or Web Serial.
 
 1. Choose **No → Use sample data**.
 2. Select a specimen to see its leaf photo and spectrum.
@@ -56,13 +49,23 @@ Samples use the same model as device measurements and do not save any records.
 
 ### Have an ESP32–AS7343 device?
 
-Use desktop Chrome, a USB data cable, and the repository’s
-[firmware and settings](firmware/esp32-as7343-spectrometer/README.md).
+Use a USB data cable, the repository’s
+[firmware and settings](firmware/esp32-as7343-spectrometer/README.md), and a desktop
+browser with **Web Serial**: **Chrome, Edge, Opera, or Firefox 151+**. **Brave** can
+also be used when Web Serial is enabled. Safari does not currently support USB
+acquisition. See [browser requirements](app/README.md#browser-support) for details;
+phone USB support depends on the device and is not verified for this app.
 
 1. Connect the device and close other serial monitors.
-2. Choose **Yes → Start**, then select its USB serial port. No Bluetooth pairing is needed.
-3. Position the leaf, enter a **Specimen label**, and click **Measure and predict**.
-4. Keep the leaf still for ten readings. Review Cab, then click **Track** to record its progress.
+2. Choose **Yes → Start** to open the browser’s serial-port picker.
+3. Select the entry belonging to your ESP32 and click **Connect**. It may be named
+   **CP210x**, **CH340**, **USB Serial**, or contain **usbserial**; the exact name varies.
+4. Position the leaf, enter a **Specimen label**, and click **Measure and predict**.
+5. Keep the leaf still for ten readings. Review Cab, then click **Track** to record its progress.
+
+**Not sure which port?** Compare the list with the ESP32 unplugged and plugged in;
+select the entry that appears when you connect it. No Bluetooth pairing is needed,
+and you do not need to match the author’s port name. [Port-selection help →](app/README.md#identify-the-esp32-port)
 
 **Stop** pauses preview. **Reset** returns to the device question and keeps saved files.
 See the [app guide](app/README.md) for connection help and tracking controls.

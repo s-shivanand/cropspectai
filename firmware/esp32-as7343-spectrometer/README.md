@@ -17,10 +17,20 @@ the Arduino framework and Adafruit AS7343 library. Confirm the wiring for your
 specific ESP32 and sensor board before powering the hardware.
 
 Install [PlatformIO](https://docs.platformio.org/en/latest/core/installation/index.html).
-From this folder:
+If you use the VS Code extension, open **PlatformIO: New Terminal** from the
+Command Palette so `pio` is available. A regular terminal needs PlatformIO on
+its `PATH`.
+
+From the repository root, build the firmware:
 
 ```sh
+cd firmware/esp32-as7343-spectrometer
 pio run -e esp32dev
+```
+
+Then, with the ESP32 connected, upload from the same folder:
+
+```sh
 pio run -e esp32dev -t upload
 ```
 

@@ -4,11 +4,15 @@
 [Demo video](https://youtu.be/MrCatPmRXBs) ·
 [Local setup](../README.md#run-locally) · [Project overview](../README.md)
 
-[Samples](#explore-without-hardware) · [Connect](#connect-a-measuring-device) ·
+[Samples](#explore-without-hardware) · [Browsers](#browser-support) ·
+[Connect](#connect-a-measuring-device) ·
 [Calibration](#using-your-own-device) · [Tracking](#track-a-specimen) ·
 [Storage](#data-and-storage) · [Troubleshooting](#troubleshooting)
 
 ## Explore without hardware
+
+Use a modern desktop or mobile browser: Chrome, Edge, Firefox, Safari, Brave,
+or Opera. Sample predictions do not need Web Serial or USB access.
 
 1. Choose **No → Use sample data**.
 2. Select a specimen to preview its photo, spectrum, and relative greenness.
@@ -18,13 +22,38 @@ Repeat with any of the three specimens. Samples use the same model as device
 measurements and do not save measurement, prediction, or tracking files.
 The CSV and photos are in the [samples folder](../firmware/esp32-as7343-spectrometer/data/measurement/samples/).
 
+## Browser support
+
+USB acquisition requires a browser that exposes **Web Serial**, permission to
+access the device, and HTTPS or localhost. Current desktop options are:
+
+| Browser | Device connection |
+| --- | --- |
+| Chrome | Native Web Serial |
+| Microsoft Edge | Native Web Serial |
+| Opera | Native Web Serial |
+| Firefox 151 or later | Web Serial; follow any additional permission/add-on prompt |
+| Brave | Web Serial must be enabled; some versions require the Web Serial flag in `brave://flags` and a browser restart |
+| Safari | No native Web Serial; use the sample workflow |
+
+API availability does not guarantee that every browser/device combination has
+been tested with this app. USB acquisition has been confirmed on macOS Chrome.
+Phone USB support depends on the operating system and device; the current app
+has no WebUSB fallback. Samples remain available on mobile browsers.
+
+Sources: [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Serial#browser_compatibility),
+[Firefox permissions](https://hacks.mozilla.org/2026/05/web-serial-support-in-firefox/),
+and [Brave’s Web Serial option](https://github.com/brave/brave-browser/issues/24404).
+
 ## Connect a measuring device
 
-**You need:** an ESP32–AS7343 device, a USB data cable, and desktop Chrome.
+**You need:** an ESP32–AS7343 device, a USB data cable, and a
+[Web Serial-capable desktop browser](#browser-support).
 
 1. Connect the device and close other serial monitors.
 2. Choose **Yes → Start**.
-3. Select the ESP32’s USB serial port and click **Connect** in the browser dialog.
+3. [Identify the ESP32’s entry](#identify-the-esp32-port) in the serial-port picker,
+   select it, and click **Connect**.
 4. Position the leaf and wait for the live spectrum.
 5. Enter a **Specimen label**, then click **Measure and predict**.
 6. Keep the leaf still while ten readings are acquired. Review the average spectrum,
@@ -36,10 +65,23 @@ The CSV and photos are in the [samples folder](../firmware/esp32-as7343-spectrom
 | **Measure and predict** | Acquire a batch and save the measurement and prediction; preview need not be running first |
 | **Reset** | Release the device and return to the unselected Yes/No question; saved files remain |
 
-> [!TIP]
-> Port names vary: look for `usbserial`, `CP210x`, `CH340`, or `USB Serial`.
-> Unplug and reconnect the board to identify the entry that disappears and returns.
-> Bluetooth pairing is unnecessary.
+### Identify the ESP32 port
+
+The picker may list several unrelated serial devices. Your board can appear as
+**CP210x**, **CH340**, **USB Serial**, or a name containing **usbserial** or
+**usbmodem**. Depending on the OS, it may also show a port such as `COM3`,
+`/dev/ttyUSB0`, or `/dev/cu.usbserial-…`. These are examples, not fixed names.
+
+If you cannot tell which entry is yours:
+
+1. Cancel the picker and unplug the ESP32.
+2. Click **Start** again and note the available entries, then cancel.
+3. Reconnect the ESP32 using the USB data cable and open the picker again.
+4. Select the new entry that appeared and click **Connect**.
+
+There is no need to pair a Bluetooth device, select the author’s port name, or
+edit `SERIAL_PORT` for browser acquisition. If no new entry appears, check the
+USB cable/adapter, operating-system device detection, and browser support.
 
 <details>
 <summary>How the browser connection works</summary>
@@ -48,10 +90,9 @@ The browser reads the local device and sends the raw batch to the Python backend
 Calibration, feature engineering, prediction, and CSV writing happen on that backend.
 The port stays connected across app reruns until Reset, disconnection, or page closure.
 
-The app detects Web Serial support rather than the browser name. Use Chrome for
-this documented workflow. Browser USB requires HTTPS or localhost. Browsers
-without Web Serial can use samples; Python serial acquisition requires running
-the server on the computer with the device. [Chrome Web Serial guide](https://developer.chrome.com/docs/capabilities/serial)
+The app detects Web Serial support rather than the browser name. Browsers
+without it can use samples; Python serial acquisition requires running the
+server on the computer with the device. [Web Serial guide](https://developer.chrome.com/docs/capabilities/serial)
 
 </details>
 
@@ -137,7 +178,7 @@ ordinary reruns do not duplicate a browser measurement.
 | Port cannot open | Close other serial monitors, app tabs, and scripts using the port |
 | Preview or batch times out | Check wiring and firmware, then **Reset** and reconnect |
 | Implausible values | Check calibration, sensor settings, leaf placement, and quality warnings |
-| No browser USB support | Use desktop Chrome, or try samples |
+| No browser USB support | Use a [Web Serial-capable desktop browser](#browser-support), or try samples |
 | History disappeared | A hosted restart or redeployment may have removed temporary files |
 
 ## Run locally

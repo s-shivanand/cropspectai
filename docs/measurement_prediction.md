@@ -15,6 +15,12 @@ Acquire measurements directly through Python and save Cab predictions to CSV.
    `firmware/esp32-as7343-spectrometer/src/as7343_measure.py` to the device’s port.
    Keep `BAUD_RATE` at `115200` to match the firmware. Close other serial monitors.
 
+To list the serial ports available on your computer, run from the repository root:
+
+```sh
+uv run --locked python -m serial.tools.list_ports
+```
+
 Reference format and normalization are described in the
 [calibration guide](../app/README.md#calibration). The terminal workflow uses the
 configured port; the browser workflow instead uses the browser’s port picker.
